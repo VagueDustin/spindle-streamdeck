@@ -31,14 +31,14 @@ describe("buildBackdrop", () => {
 		expect(got[3]).toBe(255);
 	});
 
-	test("the backdrop is the blurred, saturated cover under a 0.45 scrim", () => {
+	test("the backdrop is the blurred, saturated cover under a 0.55 scrim", () => {
 		const img = decodeDataUri(buildBackdrop(cover, accent));
 		// The 240x240 fit sits at (-20, -70), so strip (150, 50) is fitted (170, 120).
 		const blurred = saturate(boxBlur(coverFit(cover, 240, 240), 10, 3), 1.25);
 		const ref = px(blurred, 170, 120);
 		const got = px(img, 150, 50);
 		for (let c = 0; c < 3; c++) {
-			const want = ref[c] * 0.55;
+			const want = ref[c] * 0.45;
 			expect(got[c]).toBeLessThan(ref[c]);
 			expect(Math.abs(got[c] - want)).toBeLessThanOrEqual(Math.max(2, want * 0.1));
 		}
@@ -46,10 +46,10 @@ describe("buildBackdrop", () => {
 	});
 
 	test("the thumbnail corners are rounded and anti-aliased", () => {
-		// A white cover: the backdrop is white under the scrim (255 x 0.55 = 140), the thumbnail white.
+		// A white cover: the backdrop is white under the scrim (255 x 0.45 = 115), the thumbnail white.
 		const img = decodeDataUri(buildBackdrop(make(300, 300, () => [255, 255, 255]), accent));
 		// The corner pixel lies outside the 6 px radius; the edge midpoints are inside.
-		expect(px(img, 8, 8)[0]).toBeLessThanOrEqual(145);
+		expect(px(img, 8, 8)[0]).toBeLessThanOrEqual(120);
 		expect(px(img, 37, 8)[0]).toBeGreaterThan(250);
 		expect(px(img, 8, 37)[0]).toBeGreaterThan(250);
 		// Somewhere on the corner arc there is a partially covered pixel.

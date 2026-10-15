@@ -10,7 +10,8 @@ const FIT_Y = (STRIP_H - FIT_SIDE) / 2;
 const BLUR_RADIUS = 10;
 const BLUR_PASSES = 3;
 const SATURATION = 1.25;
-const SCRIM = 0.45;
+// Raised from the spec's 0.45 to 0.55 at the owner's request after the on-deck review, so the text and volume bar stand out.
+const SCRIM = 0.55;
 
 const THUMB = { x: 8, y: 8, size: 58, radius: 6 };
 /** With no cover: a vertical accent gradient, and a flat accent placeholder for the thumbnail. */
