@@ -11,7 +11,7 @@ Everything to paste into Maker Console for Spindle 1.0.0, plus the steps around 
 | Category | Music / Audio |
 | Price | Free |
 | Product type | Stream Deck plugin |
-| Author (as in the manifest) | VagueDustin. The plugin guidelines ask for the Marketplace organization name, so make the Maker Console organization match, or change the manifest `Author` to match it before packing. |
+| Author (as in the manifest) | VagueDustin Enterprises. The plugin guidelines ask for the Marketplace organization name, so the Maker Console organization name must match this exactly (the GitHub account and URLs stay `VagueDustin`). |
 | Plugin UUID | `com.vaguedustin.spindle` (permanent once published; the action UUID is `com.vaguedustin.spindle.dial`) |
 | Supported devices | Stream Deck+ (dials and touch strip) |
 | Supported systems | Windows 10 and later, macOS 12 and later (macOS only once a Mac tester has passed section 10 of the hardware checklist; otherwise list Windows only) |
@@ -32,6 +32,14 @@ Spindle turns a Stream Deck+ dial into a live "now playing" display for any Home
 
 Rules for this text: English only, no Home Assistant logo or branding, no claims the README doesn't back. If the description changes, change the README to match.
 
+## Reviewer notes
+
+Elgato's plugin guidelines ask for 2 to 30 actions. Spindle deliberately ships one purpose-built dial action for v1. Paste this into the reviewer-notes field if the form offers one, or send it if review raises the action count:
+
+```text
+Elgato's plugin guidelines ask for 2 to 30 actions. Spindle ships one action on purpose: "Now Playing" is a single purpose-built dial action for the Stream Deck+ touch strip. It carries the cover art, scrolling track info, volume and tracks mode, and every setting (Home Assistant URL, token, media player, accent) lives in that one action's Property Inspector. Splitting it into several actions would only repeat those shared settings. More actions may follow in a later version if there is a real need.
+```
+
 ## Release notes (1.0.0)
 
 Paste the 1.0.0 section of `CHANGELOG.md`.
@@ -45,20 +53,33 @@ Elgato's current rules (from docs.elgato.com/maker-console/submitting-products, 
 - **Plugin icon:** PNG, 256 x 256 px and 512 x 512 px (`imgs/plugin/marketplace.png` and `marketplace@2x.png`).
 - Images must show the real product and must be ones you own. Text in them must be English.
 
-The files in `docs/images/` are 600 x 300 px (the strip at 3x, also a 2:1 ratio), so they are **not** the right size to upload as they are. Compose each one onto a 1920 x 960 canvas (a dark background with the strip render centred and scaled, or a close crop of the hardware photo) rather than stretching the small image. A render at 3x is already soft, so keep the scale-up modest and put it on a plain background.
+The README images in `docs/images/` are 600 x 300 px (the strip at 3x), so they are **not** the right size to upload. The gallery images below are composed for the Marketplace instead: 1920 x 960 PNG, each from a real hardware capture (ruling R29). The strip is rendered at 4.5x (900 x 450, straight from the capture's vector overlay, so nothing is stretched) and centred on a darkened, heavily blurred copy of that frame's own backdrop, with a short caption in Segoe UI. They are written through pngjs, so they carry no text or metadata chunks.
 
-| File | What it shows | Use |
+`npm run gallery:captures` rebuilds them from `docs/images/captures.json` (a still with `"marketplace": "<caption>"` gets one) when the local capture archive is present.
+
+| File (1920 x 960) | Visible text | Use |
 |---|---|---|
-| `docs/images/hero.png` | Rest view, the README hero (the same frame as `rest.png`) | Thumbnail candidate. The owner's hardware photo (`docs/images/hero.jpg`, EXIF stripped), once added, is the better thumbnail. |
-| `docs/images/rest.png` | Rest view, title scrolling, the Streaming source label | Gallery 1 |
-| `docs/images/takeover.png` | Volume takeover over a blurred cover | Gallery 2 |
-| `docs/images/tracks.png` | Tracks mode, forward chevrons flashing | Gallery 3 |
-| `docs/images/paused.png` | Paused, pause glyph in place of the play bars | Gallery 4 (optional) |
-| `docs/images/cjk.png` | A Chinese title with real glyphs | Gallery 5 (optional) |
-| `docs/images/no-art.png` | No cover art: gradient and placeholder | Gallery 6 (optional) |
+| `docs/images/marketplace/hero.png` | Title "WE ARE EMPIRE", artist "STARSET", "Streaming", volume "24", caption "Now Playing" | Thumbnail and Gallery 1 |
+| `docs/images/marketplace/takeover.png` | "VOLUME", "WE ARE EMPIRE", "32", caption "Volume" | Gallery 2 |
+| `docs/images/marketplace/tracks.png` | "WE ARE EMP" (title scrolling), "STARSET", "Streaming", caption "Track skip" | Gallery 3 |
+| `docs/images/marketplace/cjk.png` | Chinese title, "Metal Scar Radio", "Streaming", "24", caption "Any language" | Gallery 4 |
+
+None of them shows a device, machine or room name, a Home Assistant or Elgato logo, or any other third-party branding. The owner's hardware photo (`docs/images/hero.jpg`, EXIF stripped), if one is added later, could replace the thumbnail.
+
+The 600 x 300 README images map to the same scenes:
+
+| File (600 x 300) | What it shows | Use |
+|---|---|---|
+| `docs/images/hero.png` | Rest view, the README hero (the same frame as `rest.png`) | README; composed into the thumbnail above |
+| `docs/images/rest.png` | Rest view, title scrolling, the Streaming source label | README only |
+| `docs/images/takeover.png` | Volume takeover over a blurred cover | README; composed into Gallery 2 |
+| `docs/images/tracks.png` | Tracks mode, forward chevrons flashing | README; composed into Gallery 3 |
+| `docs/images/paused.png` | Paused, pause glyph in place of the play bars | README; an optional extra if another gallery image is wanted |
+| `docs/images/cjk.png` | A Chinese title with real glyphs | README; composed into Gallery 4 |
+| `docs/images/no-art.png` | No cover art: gradient and placeholder | README; an optional extra |
 | `docs/images/spindle.gif` | The title scrolling, then a volume takeover that fades back | Source for an MP4 (1920 x 1080) if a video is wanted; the Marketplace takes MP4, not GIF |
 
-Elgato also says products that need hardware or paid-service integrations must include a demo video showing the plugin fully working. Spindle needs a Stream Deck+ and a Home Assistant server, so plan a short MP4 of the real deck (1920 x 1080, 50 MB or less) with a 1920 x 960 thumbnail. Check today whether it is mandatory for this plugin.
+Elgato also says products that need hardware or paid-service integrations must include a demo video showing the plugin fully working. Spindle needs a Stream Deck+ and a Home Assistant server, so plan a short MP4 of the real deck (1920 x 1080, 50 MB or less) with a 1920 x 960 thumbnail (`docs/images/marketplace/hero.png` can serve). **Recording the demo video is the owner's job** (see the checklist below); `spindle.gif` is only a reference for the scrolling-then-takeover sequence. Check today whether it is mandatory for this plugin.
 
 No Home Assistant logo, Elgato logo or other third-party branding goes in any image (spec section 13, item 6).
 
@@ -75,11 +96,13 @@ No Home Assistant logo, Elgato logo or other third-party branding goes in any im
 - [ ] Image sizes still 1920 x 960 PNG (thumbnail and gallery), 3 gallery items minimum, MP4 at 1920 x 1080 for video. Plugin icon still 256 and 512 px.
 - [ ] Description length limit and release-notes field, as the form shows them.
 - [ ] Demo-video requirement for hardware plugins, as the form shows it.
+- [ ] **Record the demo video (owner):** a short MP4, 1920 x 1080, 50 MB or less, filmed on the real Stream Deck+ showing the plugin fully working: now playing with a scrolling title, turning the dial (volume takeover), pressing to switch to tracks mode and skipping a track, and tapping the strip to play or pause. No device, room, account or Home Assistant names on screen, and no third-party logos. Upload it to the gallery, with `docs/images/marketplace/hero.png` as its 1920 x 960 thumbnail.
+- [ ] Gallery: upload the four PNGs in `docs/images/marketplace/` (the table above says which is the thumbnail), and look at each one in the form preview.
 - [ ] Category list: Music / Audio is still offered. If it isn't, pick the nearest one and record it here.
 - [ ] Guidelines that may affect Spindle, as read on 2026-10-15 (decide each one before submitting):
-  - The plugin guidelines ask for **between 2 and 30 actions**. Spindle has one action (**Now Playing**). Check whether review enforces this, and have a reply ready: Spindle's single action carries all its settings, and the guidelines also say to consolidate actions that share settings.
-  - The guidelines give the **category icon as 28 x 28 px (56 x 56 at high DPI)**, and the action icon as 20 x 20 (40 at high DPI). `scripts/build-icons.ts` currently writes the category icon at 20 and 40 px, so check this against the manifest validation and the guideline before submitting.
-  - Category and action icons must be monochrome white (`#FFFFFF`) on a transparent background, with no colour and no solid background.
+  - The plugin guidelines ask for **between 2 and 30 actions**. Spindle deliberately ships **one** purpose-built dial action (**Now Playing**) in v1, so expect to explain it (see Reviewer notes above). Check whether review enforces the range.
+  - Icon sizes (done): the category icon is 28 x 28 px (56 x 56 at high DPI), the action icon 20 x 20 (40), the key image 72 x 72 (144) and the Marketplace icon 256 and 512 px, all generated by `npm run icons` from one glyph (a thick ring, solid hub and three gaps). Re-check the numbers against today's guidelines.
+  - Category and action icons must be monochrome white (`#FFFFFF`) on a transparent background, with no colour and no solid background. Spindle's are, and the glyph is not the Home Assistant logo.
   - The category should be similar to the plugin name (it is "Spindle"), and action names should be about 30 characters or fewer ("Now Playing").
 - [ ] **UUID and name** (spec section 13, item 5): search the Marketplace for "Spindle" before locking the UUID in with the first submission. If another plugin has that name or a close one, stop and decide on a new name before anything is uploaded. The UUID `com.vaguedustin.spindle` can't change once it is published.
 - [ ] **No Home Assistant logo** (spec section 13, item 6): no HA logo, mark or branding in the plugin icon, the preview images, the video or the description. The "for Home Assistant" form of the name is descriptive only, and the description ends "Not affiliated with Home Assistant or Elgato."

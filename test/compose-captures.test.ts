@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseManifest, sampleSequence, shownAt, svgFromUri, type CaptureFrame } from "../scripts/compose-captures";
+import { PNG } from "pngjs";
+import { composeMarketplace, parseManifest, sampleSequence, shownAt, svgFromUri, type CaptureFrame } from "../scripts/compose-captures";
 
 const f = (n: number, t: number, keys: { fg?: string; bg?: string }): CaptureFrame => ({ n, dial: 0, t, ...keys });
 
@@ -90,5 +91,64 @@ describe("parseManifest", () => {
 		expect(() => parseManifest({ rest: { frame: 5 } })).toThrow(/frame/);
 		expect(() => parseManifest({ gif: { from: "a.json", to: "b.json", fps: 0 } })).toThrow(/fps/);
 		expect(() => parseManifest({ gif: { from: "a.json" } })).toThrow(/to/);
+	});
+});
+
+describe("parseManifest marketplace outputs", () => {
+	it("collects stills that ask for a marketplace image, with their caption", () => {
+		const m = parseManifest({
+			hero: { frame: "capture/000001-0.json", marketplace: "Now Playing" },
+			takeover: { frame: "capture/000002-0.json", marketplace: true },
+			rest: { frame: "capture/000003-0.json" }
+		});
+		expect(m.stills).toEqual({
+			hero: "capture/000001-0.json",
+			takeover: "capture/000002-0.json",
+			rest: "capture/000003-0.json"
+		});
+		expect(m.marketplace).toEqual({ hero: "Now Playing", takeover: "" });
+	});
+
+	it("leaves marketplace out when no still asks for it", () => {
+		expect(parseManifest({ rest: { frame: "a-0.json" } })).not.toHaveProperty("marketplace");
+	});
+
+	it("rejects a marketplace value that is not true or a caption", () => {
+		expect(() => parseManifest({ rest: { frame: "a.json", marketplace: false } })).toThrow(/marketplace/);
+		expect(() => parseManifest({ rest: { frame: "a.json", marketplace: "" } })).toThrow(/marketplace/);
+		expect(() => parseManifest({ rest: { frame: "a.json", marketplace: 3 } })).toThrow(/marketplace/);
+		expect(() => parseManifest({ rest: { frame: "a.json", marketplace: "x".repeat(41) } })).toThrow(/marketplace/);
+	});
+});
+
+describe("composeMarketplace", () => {
+	const solid = (r: number, g: number, b: number): string => {
+		const png = new PNG({ width: 8, height: 4 });
+		for (let i = 0; i < png.data.length; i += 4) png.data.set([r, g, b, 255], i);
+		return `data:image/png;base64,${PNG.sync.write(png).toString("base64")}`;
+	};
+	const strip = { width: 900, height: 450, data: new Uint8Array(900 * 450 * 4).map((_, i) => (i % 4 === 3 ? 255 : i % 4 === 0 ? 200 : 20)) };
+
+	it("makes a 1920x960 image with the strip untouched in the middle and a dark backdrop around it", () => {
+		const img = composeMarketplace(solid(180, 60, 60), strip, "");
+		expect([img.width, img.height]).toEqual([1920, 960]);
+		const at = (x: number, y: number) => Array.from(img.data.slice((y * 1920 + x) * 4, (y * 1920 + x) * 4 + 4));
+		expect(at(960, 480)).toEqual([200, 20, 20, 255]);
+		const [r, g, b] = at(40, 40);
+		expect(Math.max(r, g, b)).toBeLessThan(120);
+		expect(r).toBeGreaterThan(g);
+	});
+
+	it("draws a caption below the strip when given one, and escapes it", () => {
+		const plain = composeMarketplace(solid(40, 40, 40), strip, "");
+		const captioned = composeMarketplace(solid(40, 40, 40), strip, "A & <B>");
+		const row = (img: typeof plain, y: number) => img.data.slice(y * 1920 * 4, (y + 1) * 1920 * 4);
+		const lit = (img: typeof plain) => {
+			let n = 0;
+			for (let y = 700; y < 900; y++) for (const v of row(img, y).filter((_, i) => i % 4 === 0)) if (v > 200) n++;
+			return n;
+		};
+		expect(lit(plain)).toBe(0);
+		expect(lit(captioned)).toBeGreaterThan(50);
 	});
 });

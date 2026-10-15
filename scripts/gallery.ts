@@ -26,14 +26,14 @@ export const SCALE = 3;
 export const WIDTH = 200 * SCALE;
 export const HEIGHT = 100 * SCALE;
 /** The machine's system fonts, so `Segoe UI` and the CJK fallback (Yu Gothic UI on Windows) match the deck. */
-const FONT = { loadSystemFonts: true, defaultFontFamily: "Segoe UI", sansSerifFamily: "Segoe UI" };
+export const FONT = { loadSystemFonts: true, defaultFontFamily: "Segoe UI", sansSerifFamily: "Segoe UI" };
 
 /**
  * What the strip shows, at 3x: the bg PNG under the fg SVG, as one SVG with the backdrop embedded
- * as an <image> (resvg scales it up smoothly), rasterised by resvg to 600 px wide.
+ * as an <image> (resvg scales it up smoothly), rasterised by resvg to `width` px (default 600).
  */
-export function rasterise(bgUri: string, fgSvg: string): Rgba {
-	const resvg = new Resvg(composeSingle(bgUri, fgSvg), { fitTo: { mode: "width", value: WIDTH }, font: FONT });
+export function rasterise(bgUri: string, fgSvg: string, width = WIDTH): Rgba {
+	const resvg = new Resvg(composeSingle(bgUri, fgSvg), { fitTo: { mode: "width", value: width }, font: FONT });
 	// asPng() demultiplies alpha; decoding it gives straight RGBA.
 	const png = PNG.sync.read(resvg.render().asPng());
 	return { width: png.width, height: png.height, data: new Uint8Array(png.data) };

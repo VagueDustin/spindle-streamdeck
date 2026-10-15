@@ -11,12 +11,16 @@
 //   {
 //     "rest":     { "frame": "capture/000123-0.json" },
 //     "paused":   { "frame": "capture/000150-0.json" },
-//     "takeover": { "frame": "capture/000171-2.json" },
+//     "takeover": { "frame": "capture/000171-2.json", "marketplace": "Volume" },
 //     "gif":      { "from": "capture/000200-0.json", "to": "capture/000260-0.json", "fps": 10 }
 //   }
 //
 // - Stills: rest, paused, takeover, tracks, cjk, no-art and hero, each written to
 //   docs/images/<name>.png. `frame` is relative to the repo root.
+// - A still can also ask for an Elgato Marketplace gallery image with `"marketplace": true` or
+//   `"marketplace": "<caption>"` (at most 40 characters). That writes docs/images/marketplace/<name>.png,
+//   1920x960: the same frame rendered at 4.5x (900x450) and centred on a darkened, heavily blurred copy
+//   of its own backdrop, with the caption (if any) below it in Segoe UI.
 // - "gif": docs/images/spindle.gif, sampling what that dial showed every 1000/fps ms (default 10,
 //   at most 50) from the `from` frame's time to the `to` frame's. Both must be the same dial in the
 //   same folder.
@@ -30,7 +34,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Rgba } from "../src/art/image";
 import { parseCaptureName } from "../src/capture";
-import { OUT, rasterise, writeGif, writePng } from "./gallery";
+import { Resvg } from "@resvg/resvg-js";
+import { PNG } from "pngjs";
+import { FONT, OUT, rasterise, writeGif, writePng } from "./gallery";
 
 export const MANIFEST = path.join(OUT, "captures.json");
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -38,11 +44,18 @@ const STILLS = new Set(["rest", "paused", "takeover", "tracks", "cjk", "no-art",
 const DEFAULT_FPS = 10;
 const MAX_FPS = 50;
 const SVG_URI = "data:image/svg+xml,";
+const MARKETPLACE_DIR = "marketplace";
+const MARKETPLACE_W = 1920;
+const MARKETPLACE_H = 960;
+/** The strip at 4.5x: 900x450, so the 1920x960 canvas keeps generous margins. */
+const MARKETPLACE_STRIP_W = 900;
+const MAX_CAPTION = 40;
 
 export type CaptureFrame = { n: number; dial: number; t: number; fg?: string; bg?: string };
 /** What the strip showed: an fg SVG data URI over a bg PNG data URI. */
 export type Shown = { fg: string; bg: string };
-export type Manifest = { stills: Record<string, string>; gif?: { from: string; to: string; fps: number } };
+/** `marketplace` maps a still's name to its caption ("" for none), for the stills that asked for a gallery image. */
+export type Manifest = { stills: Record<string, string>; marketplace?: Record<string, string>; gif?: { from: string; to: string; fps: number } };
 
 /** The SVG inside the controller's `data:image/svg+xml,<percent-encoded>` fg. */
 export function svgFromUri(uri: string): string {
@@ -116,11 +129,50 @@ export function parseManifest(json: unknown): Manifest {
 			out.gif = { from: str("gif.from", entry.from), to: str("gif.to", entry.to), fps };
 		} else {
 			if (!STILLS.has(name)) throw new Error(`unknown output name "${name}"; use one of ${[...STILLS].join(", ")} or gif`);
-			checkKeys(name, entry, ["frame"]);
+			checkKeys(name, entry, ["frame", "marketplace"]);
 			out.stills[name] = str(`${name}.frame`, entry.frame);
+			if (entry.marketplace !== undefined) {
+				const caption = entry.marketplace;
+				if (caption !== true && (typeof caption !== "string" || caption === "" || caption.length > MAX_CAPTION)) {
+					throw new Error(`${name}.marketplace must be true or a caption of 1 to ${MAX_CAPTION} characters`);
+				}
+				(out.marketplace ??= {})[name] = caption === true ? "" : caption;
+			}
 		}
 	}
 	return out;
+}
+
+const escapeXml = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/**
+ * A 1920x960 Marketplace gallery image: the strip render, unscaled, centred over a darkened,
+ * heavily blurred copy of the frame's own backdrop, with an optional caption beneath it.
+ * `strip` is already rasterised at 900x450, so nothing is resampled here except the backdrop.
+ */
+export function composeMarketplace(bgUri: string, strip: Rgba, caption: string): Rgba {
+	const stripPng = PNG.sync.write(Object.assign(new PNG({ width: strip.width, height: strip.height }), { data: Buffer.from(strip.data) }));
+	const x = (MARKETPLACE_W - strip.width) / 2;
+	const y = caption ? 190 : (MARKETPLACE_H - strip.height) / 2;
+	const uri = `data:image/png;base64,${stripPng.toString("base64")}`;
+	const text = caption
+		? `<text x="${MARKETPLACE_W / 2}" y="${y + strip.height + 110}" text-anchor="middle" font-family="Segoe UI" font-size="56" font-weight="600" letter-spacing="2" fill="#ffffff" fill-opacity="0.92">${escapeXml(caption)}</text>`
+		: "";
+	// The backdrop is drawn past the canvas on every side so the blur has no transparent edge.
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKETPLACE_W}" height="${MARKETPLACE_H}" viewBox="0 0 ${MARKETPLACE_W} ${MARKETPLACE_H}">
+	<defs>
+		<filter id="blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="70"/></filter>
+		<filter id="shadow" x="-20%" y="-30%" width="140%" height="160%"><feGaussianBlur stdDeviation="28"/></filter>
+		<clipPath id="strip"><rect x="${x}" y="${y}" width="${strip.width}" height="${strip.height}" rx="18"/></clipPath>
+	</defs>
+	<image x="-320" y="-160" width="2560" height="1280" preserveAspectRatio="xMidYMid slice" href="${bgUri}" filter="url(#blur)"/>
+	<rect width="${MARKETPLACE_W}" height="${MARKETPLACE_H}" fill="#000000" fill-opacity="0.62"/>
+	<rect x="${x}" y="${y + 22}" width="${strip.width}" height="${strip.height}" rx="18" fill="#000000" fill-opacity="0.55" filter="url(#shadow)"/>
+	<image x="${x}" y="${y}" width="${strip.width}" height="${strip.height}" href="${uri}" clip-path="url(#strip)"/>
+	${text}
+</svg>`;
+	const png = PNG.sync.read(new Resvg(svg, { fitTo: { mode: "width", value: MARKETPLACE_W }, font: FONT }).render().asPng());
+	return { width: png.width, height: png.height, data: new Uint8Array(png.data) };
 }
 
 /** The capture folder, counter and dial of a manifest frame path. */
@@ -183,8 +235,15 @@ function main(): number {
 	fs.mkdirSync(OUT, { recursive: true });
 	for (const [name, ref] of Object.entries(manifest.stills)) {
 		const { dir, n, dial } = frameRef(ref);
-		const [img] = renderAll([shownAt(loadDial(dir, dial), n)]);
+		const shown = shownAt(loadDial(dir, dial), n);
+		const [img] = renderAll([shown]);
 		writePng(`${name}.png`, img);
+		const caption = manifest.marketplace?.[name];
+		if (caption !== undefined) {
+			fs.mkdirSync(path.join(OUT, MARKETPLACE_DIR), { recursive: true });
+			const strip = rasterise(shown.bg, svgFromUri(shown.fg), MARKETPLACE_STRIP_W);
+			writePng(`${MARKETPLACE_DIR}/${name}.png`, composeMarketplace(shown.bg, strip, caption));
+		}
 	}
 	if (manifest.gif) {
 		const { fps } = manifest.gif;

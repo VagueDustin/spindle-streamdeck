@@ -1,10 +1,10 @@
 {
 	"rest": { "frame": ".superpowers/capture-archive/001725-0.json" },
-	"hero": { "frame": ".superpowers/capture-archive/001725-0.json" },
-	"takeover": { "frame": ".superpowers/capture-archive2/000636-0.json" },
-	"tracks": { "frame": ".superpowers/capture-archive/001979-0.json" },
+	"hero": { "frame": ".superpowers/capture-archive/001725-0.json", "marketplace": "Now Playing" },
+	"takeover": { "frame": ".superpowers/capture-archive2/000636-0.json", "marketplace": "Volume" },
+	"tracks": { "frame": ".superpowers/capture-archive/001979-0.json", "marketplace": "Track skip" },
 	"paused": { "frame": ".superpowers/capture-archive2/000689-0.json" },
-	"cjk": { "frame": ".superpowers/capture-archive/001600-0.json" },
+	"cjk": { "frame": ".superpowers/capture-archive/001600-0.json", "marketplace": "Any language" },
 	"no-art": { "frame": ".superpowers/capture-archive/000000-0.json" },
 	"gif": { "from": ".superpowers/capture-archive2/000600-0.json", "to": ".superpowers/capture-archive2/000666-0.json", "fps": 9.09 }
 }
