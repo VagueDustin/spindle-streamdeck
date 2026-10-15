@@ -6,3 +6,5 @@ com.vaguedustin.spindle.sdPlugin/logs/
 out/
 # Frames recorded by a SPINDLE_CAPTURE=1 build (src/capture.ts)
 /capture/
+# Local working notes, reviews and deck photos: never published
+.superpowers/

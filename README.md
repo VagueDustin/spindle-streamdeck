@@ -14,7 +14,7 @@ Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" displa
 
 ## Gallery
 
-These images come straight from Spindle's own renderer (`npm run screenshots`), at 3× the strip's 200×100 pixels. The covers are abstract images that the script draws itself, and the track and artist names are made up.
+These images come straight from Spindle's own renderer, at 3× the strip's 200×100 pixels.
 
 <table>
   <tr>
@@ -104,7 +104,7 @@ Matching ignores upper and lower case. Spindle checks the player's `source` firs
 | **Set up Spindle in Stream Deck** | The URL, the token or the media player is missing. Open the dial's settings in the Stream Deck app and fill them in. |
 | **Connecting…** | Spindle is connecting to Home Assistant for the first time, or waiting for the player's first state. |
 | **Reconnecting…** (badge, strip dimmed) | The connection to Home Assistant dropped. Spindle retries on its own, waiting 1 to 30 seconds between attempts. Input is ignored until it's back. |
-| **Check token** | Home Assistant rejected the token, for example because it was revoked or mistyped. Spindle stops connecting until you change the URL or token. Create a new token (see [Create a token](#create-a-token)) and paste it in. |
+| **Check token** | Home Assistant rejected the token, for example because it was revoked or mistyped. Spindle stops connecting until you change the URL or token, apart from one more try each time the plugin or the Stream Deck app restarts. Create a new token (see [Create a token](#create-a-token)) and paste it in. |
 | **Player not found** and the entity id | Home Assistant has no entity with that id. It may have been renamed or removed. Pick the player again; the list shows the missing one as `(not found) media_player.…`. |
 | **Unavailable** (strip dimmed) | Home Assistant reports the player as `unavailable` or `unknown`, usually because the device is offline. |
 | **Off** | The player is off. The strip shows its name over an accent gradient. |
@@ -133,13 +133,13 @@ Enter the same URL you use in a browser. Spindle works out the WebSocket address
 ### Cover art doesn't show
 
 - Spindle decodes JPEG and PNG covers only. Some integrations serve WebP or AVIF; for those the strip shows the accent gradient and a placeholder thumbnail instead. Everything else still works.
-- Covers larger than 5 MB, or with very large dimensions (above roughly 3,300 pixels on a side for JPEG), also fall back to the gradient, which keeps memory use bounded.
+- Covers larger than 5 MB, or with very large dimensions (above roughly 3,300 pixels on a side for JPEG, or 16 megapixels for PNG), also fall back to the gradient, which keeps memory use bounded. So do interlaced PNGs and JPEGs with an unusually large number of progressive scans, which would take too long to decode.
 - Covers served by Home Assistant are fetched with your token. Covers on other hosts are fetched without it, so a host that needs its own login won't work.
-- If a cover fails to load, the previous backdrop stays until the next track.
+- If a cover fails to load, the strip shows the accent gradient, and Spindle tries again up to 3 times, 5 seconds apart.
 
 ### Warning: repeated bad tokens can get this computer banned
 
-If Home Assistant's `http` integration has `ip_ban_enabled: true`, it bans an IP address after `login_attempts_threshold` failed logins, and a rejected token counts as one. Spindle tries a rejected token once and then stops until you change the URL or token, so it won't run into the limit on its own. Pasting a wrong token several times can, though.
+If Home Assistant's `http` integration has `ip_ban_enabled: true`, it bans an IP address after `login_attempts_threshold` failed logins, and a rejected token counts as one. Spindle tries a rejected token once and then stops until you change the URL or token. It tries once more each time the plugin or the Stream Deck app restarts, so it won't run into the limit on its own. Pasting a wrong token several times can, though.
 
 If this computer is banned, Home Assistant refuses every connection from it, and the status shows **Can't reach**. To lift the ban, remove the computer's address from `ip_bans.yaml` in Home Assistant's configuration folder, then restart Home Assistant.
 
@@ -149,6 +149,7 @@ If this computer is banned, Home Assistant refuses every connection from it, and
 - **Use a non-admin user.** Spindle only reads states and controls media players, and a regular user can do both. If the token ever leaks, a non-admin token limits the damage. You can revoke it at any time under **Profile → Security** in Home Assistant.
 - **What Spindle calls:** only `media_player` services: `volume_set`, `volume_up`, `volume_down`, `media_play_pause`, `media_next_track` and `media_previous_track`. It reads states with `get_states` and `subscribe_entities`.
 - **The token goes only to your Home Assistant.** Cover art on other hosts is fetched without it, and the token is never written to Spindle's logs.
+- **Use `https` for a remote Home Assistant.** With an `http://` URL the token crosses the network in clear text, which is only acceptable on a network you trust.
 - **No telemetry, no analytics.** Spindle talks only to the Home Assistant URL you enter, plus any external cover-art URLs that Home Assistant points to.
 
 See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
@@ -193,7 +194,9 @@ npm run scrub        # pre-publish scan for private addresses, tokens and PNG me
 npm run validate     # streamdeck validate on the plugin folder
 ```
 
-`npm run screenshots` regenerates the gallery and the GIF in `docs/images/` from the real renderer, using the fonts installed on your machine. The golden-render tests use a bundled Noto Sans instead, so they give the same result on every machine.
+`npm run screenshots` renders the gallery and the GIF in `docs/images/` with the real renderer, using the fonts installed on your machine. It skips any image listed in `docs/images/captures.json`: `npm run gallery:captures` composes those from frames recorded on a Stream Deck+ by a `SPINDLE_CAPTURE=1` build (the format is described at the top of `scripts/compose-captures.ts`). The golden-render tests use a bundled Noto Sans instead, so they give the same result on every machine.
+
+Never raise the Stream Deck SDK's log level to `trace`. At that level the SDK logs every raw message it exchanges with the Stream Deck app, including the global settings, which hold the Home Assistant token.
 
 ## Credits and license
 
