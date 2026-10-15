@@ -1,0 +1,24 @@
+{
+	"extends": "@tsconfig/node20/tsconfig.json",
+	"compilerOptions": {
+		"customConditions": [
+			"node"
+		],
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"noImplicitOverride": true,
+		"types": [
+			"node",
+			"vitest/globals"
+		]
+	},
+	"include": [
+		"src/**/*.ts",
+		"test/**/*.ts",
+		"scripts/**/*.ts",
+		"vitest.config.ts"
+	],
+	"exclude": [
+		"node_modules"
+	]
+}

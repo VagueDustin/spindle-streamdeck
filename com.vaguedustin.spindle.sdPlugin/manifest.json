@@ -1,0 +1,54 @@
+{
+	"Name": "Spindle",
+	"Version": "0.1.0.0",
+	"Author": "VagueDustin",
+	"Actions": [
+		{
+			"Name": "Now Playing",
+			"UUID": "com.vaguedustin.spindle.dial",
+			"Icon": "imgs/actions/dial/icon",
+			"Tooltip": "Cover art, scrolling track info and volume from a Home Assistant media player.",
+			"PropertyInspectorPath": "ui/spindle.html",
+			"Controllers": [
+				"Encoder"
+			],
+			"Encoder": {
+				"layout": "layouts/spindle.json",
+				"TriggerDescription": {
+					"Rotate": "Volume / Skip",
+					"Push": "Switch mode",
+					"Touch": "Play/Pause"
+				}
+			},
+			"States": [
+				{
+					"Image": "imgs/actions/dial/key"
+				}
+			]
+		}
+	],
+	"Category": "Spindle",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"CodePath": "bin/plugin.js",
+	"Description": "Now Playing for Home Assistant: cover art, scrolling track info and volume on your Stream Deck+ dial.",
+	"Icon": "imgs/plugin/marketplace",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "7.1"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "24"
+	},
+	"UUID": "com.vaguedustin.spindle",
+	"URL": "https://github.com/VagueDustin/spindle-streamdeck"
+}

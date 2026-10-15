@@ -1,0 +1,6 @@
+node_modules/
+com.vaguedustin.spindle.sdPlugin/bin/
+com.vaguedustin.spindle.sdPlugin/logs/
+*.streamDeckPlugin
+.scrub-local.txt
+out/
