@@ -64,7 +64,7 @@ const ENTITIES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;
  * The five XML specials, plus everything XML 1.0 forbids: C0 controls other than tab,
  * LF and CR; U+FFFE and U+FFFF; and unpaired surrogates. Paired surrogates (emoji) pass.
  */
-const UNSAFE = /[&<>"'\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+const UNSAFE = /[&<>"'\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
 /** Text safe for an SVG text node or attribute value: escaped, and stripped of characters invalid in XML 1.0. */
 export function escapeXml(s: string): string {
@@ -96,12 +96,31 @@ function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string
 	};
 }
 
-/** Cuts `raw` to fit `width` (by the estimate), ending in an ellipsis when cut. Returns escaped text. */
+/** Cuts `raw` to fit `width` (by the estimate), ending in an ellipsis when cut. Not escaped. */
 function ellipsize(raw: string, width: number, font: FontSpec): string {
-	if (estimateWidth(raw, font) <= width) return escapeXml(raw);
+	if (estimateWidth(raw, font) <= width) return raw;
 	const chars = [...raw];
 	while (chars.length > 0 && estimateWidth(`${chars.join("").trimEnd()}…`, font) > width) chars.pop();
-	return escapeXml(`${chars.join("").trimEnd()}…`);
+	return `${chars.join("").trimEnd()}…`;
+}
+
+/**
+ * Greedy word wrap into at most `maxLines` lines of TEXT_W. Lines break at spaces, or after
+ * . _ - / so an entity id like media_player.living_room can wrap. Whatever is left after the
+ * last line break joins the last line, and any line still too wide is ellipsized.
+ */
+function wrap(raw: string, font: FontSpec, maxLines: number): string[] {
+	const lines: string[] = [];
+	let cur = "";
+	for (const piece of raw.trim().split(/(?<=[\s._/-])/)) {
+		const next = cur + piece;
+		if (cur.trim() && lines.length < maxLines - 1 && estimateWidth(next.trimEnd(), font) > TEXT_W) {
+			lines.push(cur.trimEnd());
+			cur = piece.trimStart();
+		} else cur = next;
+	}
+	lines.push(cur.trimEnd());
+	return lines.map((line) => ellipsize(line, TEXT_W, font));
 }
 
 /** Three accent bars bouncing on the base line; half height while buffering. */
@@ -163,8 +182,17 @@ function trackChevrons(flashDir: -1 | 0 | 1, accent: Rgb): string {
 	);
 }
 
-/** "Idle", "Off", "Unavailable"... for a player with no title. */
-const statusWord = (status: string) => status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+/** Spec 7's word for a player with no title; other states are shown capitalised. */
+const STATUS_WORDS: Record<string, string> = {
+	idle: "Idle",
+	on: "Idle",
+	standby: "Idle",
+	unavailable: "Unavailable",
+	unknown: "Unavailable",
+	off: "Off"
+};
+const statusWord = (status: string) =>
+	STATUS_WORDS[status] ?? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 
 type Rest = { svg: string; bars: boolean; scrolls: boolean };
 
@@ -202,17 +230,36 @@ function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
 	return s;
 }
 
-/** Spec 7's messages: the headline in the title slot, the sub-line in the artist slot. Never scrolls. */
+/** Two-line message headlines (ruling R13) step down to 600/15 px on these centres. */
+const WRAPPED_FONT: FontSpec = { size: 15, weight: 600 };
+const WRAPPED_Y = [TITLE_Y, 37];
+/** The sub-line's first centre after a two-line headline; its own lines are 15 px apart. */
+const SUB_Y_AFTER_WRAP = 55;
+const SUB_LEADING = 15;
+
+/**
+ * Spec 7's messages: the headline in the title slot, the sub-line in the artist slot. Never
+ * scrolls. A headline that fits stays one line at 600/17; otherwise it wraps onto two lines
+ * at 600/15 (R13). The sub-line follows in the next slot and wraps the same way.
+ */
 function messageView(m: { headline: string; sub?: string }): string {
-	let s = text(TEXT_X, TITLE_Y, TITLE_FONT, WHITE, ellipsize(m.headline, TEXT_W, TITLE_FONT));
-	if (m.sub) s += text(TEXT_X, ARTIST_Y, ARTIST_FONT, white(0.72), ellipsize(m.sub, TEXT_W, ARTIST_FONT));
+	const oneLine = estimateWidth(m.headline.trim(), TITLE_FONT) <= TEXT_W;
+	const head = oneLine ? [m.headline.trim()] : wrap(m.headline, WRAPPED_FONT, 2);
+	const font = oneLine ? TITLE_FONT : WRAPPED_FONT;
+	let s = head.map((line, i) => text(TEXT_X, WRAPPED_Y[i], font, WHITE, escapeXml(line))).join("");
+	if (m.sub) {
+		const y = head.length > 1 ? SUB_Y_AFTER_WRAP : ARTIST_Y;
+		s += wrap(m.sub, ARTIST_FONT, 2)
+			.map((line, i) => text(TEXT_X, y + i * SUB_LEADING, ARTIST_FONT, white(0.72), escapeXml(line)))
+			.join("");
+	}
 	return s;
 }
 
 /** A small dark pill near the top-right, e.g. "Reconnecting…". */
 function badge(label: string): string {
 	const font: FontSpec = { size: 11, weight: 600 };
-	const body = ellipsize(label, 150, font);
+	const body = escapeXml(ellipsize(label, 150, font));
 	const right = STRIP_W - 4;
 	const w = Math.min(estimateWidth(label, font), 150) + 12;
 	return (

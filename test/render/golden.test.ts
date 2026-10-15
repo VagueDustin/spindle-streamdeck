@@ -59,6 +59,7 @@ const SCENARIOS: Record<string, Scenario> = {
 	tracks: { cover: COVER, accent: ACCENT, p: player(), ui: ui({ mode: "tracks", flashDir: 1 }) },
 	"no-art": { cover: null, accent: FALLBACK_ACCENT, p: player(), ui: ui() },
 	"message-check-token": { cover: null, accent: FALLBACK_ACCENT, p: null, ui: ui({ message: { headline: "Check token" } }) },
+	"message-setup": { cover: null, accent: FALLBACK_ACCENT, p: null, ui: ui({ message: { headline: "Set up Spindle in Stream Deck" } }) },
 	"long-title-offset-40": {
 		cover: COVER,
 		accent: ACCENT,

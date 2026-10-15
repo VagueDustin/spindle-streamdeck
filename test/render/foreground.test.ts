@@ -200,6 +200,29 @@ describe("renderForeground: rest view", () => {
 		expect(f.animating).toBe(false);
 	});
 
+	// Spec 7: the status word shown under the friendly name when there is no title.
+	const statusLine = (status: string) =>
+		texts(renderForeground(player({ status, title: undefined, artist: undefined }), ui(), ACCENT, 0).svg).find(
+			(t) => /font-size="13"/.test(t.attrs)
+		)!.body;
+
+	test.each(["idle", "on", "standby"])('"%s" reads "Idle"', (status) => {
+		expect(statusLine(status)).toBe("Idle");
+	});
+
+	test.each(["unavailable", "unknown"])('"%s" reads "Unavailable"', (status) => {
+		expect(statusLine(status)).toBe("Unavailable");
+	});
+
+	test('"off" reads "Off"', () => {
+		expect(statusLine("off")).toBe("Off");
+	});
+
+	test("any other state is capitalised", () => {
+		expect(statusLine("playing")).toBe("Playing");
+		expect(statusLine("paused")).toBe("Paused");
+	});
+
 	test("volume row: a 150 px track at 0.22, an accent fill and the number right-aligned at x=194", () => {
 		const svg = renderForeground(player(), ui({ volume: 50 }), ACCENT, 0).svg;
 		expect(svg).toMatch(/<rect x="8" y="80" width="150" height="6" rx="3" fill="#fff" fill-opacity="0.22"\/>/);
@@ -257,6 +280,15 @@ describe("renderForeground: takeover", () => {
 		expect(svg).not.toContain('font-size="44"');
 		expect(svg).toMatch(/<circle /);
 	});
+
+	test('"hidden" shows neither the bar nor the number', () => {
+		const svg = renderForeground(player(), ui({ takeoverAlpha: 1, volumeDisplay: "hidden", volume: 64 }), ACCENT, 0).svg;
+		expect(svg).toContain('opacity="0.62"');
+		expect(svg).not.toContain('font-size="44"');
+		expect(texts(svg).some((t) => t.body === "64")).toBe(false);
+		expect(svg).not.toMatch(/<circle /);
+		expect(svg).not.toContain('width="176"');
+	});
 });
 
 describe("renderForeground: tracks mode", () => {
@@ -303,12 +335,55 @@ describe("renderForeground: messages, dim and badge", () => {
 		expect(f).toMatchObject({ animating: false, halfRate: false });
 	});
 
-	test("an overflowing message is truncated with an ellipsis rather than scrolled", () => {
-		const f = renderForeground(null, ui({ message: { headline: LONG_TITLE } }), ACCENT, 0);
-		const headline = texts(f.svg)[0].body;
-		expect(headline.endsWith("…")).toBe(true);
-		expect(estimateWidth(headline, { size: 17, weight: 600 })).toBeLessThanOrEqual(120);
+	// Ruling R13: a headline that fits stays one line at 600/17; otherwise it wraps onto at
+	// most two lines at 600/15 on y=20 and y=37, and the sub-line moves down to y=55.
+	const centreY = (attrs: string, size: number) => num(attrs, "y") - size * 0.35;
+
+	test("a fitting headline stays on one line at 17 px, with the sub-line at y=40", () => {
+		const ts = texts(renderForeground(null, ui({ message: { headline: "Check token", sub: "Home Assistant" } }), ACCENT, 0).svg);
+		expect(ts.map((t) => t.body)).toEqual(["Check token", "Home Assistant"]);
+		expect(ts[0].attrs).toMatch(/font-size="17" font-weight="600"/);
+		expect(centreY(ts[0].attrs, 17)).toBeCloseTo(20, 0);
+		expect(centreY(ts[1].attrs, 13)).toBeCloseTo(40, 0);
+	});
+
+	test('"Set up Spindle in Stream Deck" wraps onto two 15 px lines with no ellipsis', () => {
+		const ts = texts(renderForeground(null, ui({ message: { headline: "Set up Spindle in Stream Deck" } }), ACCENT, 0).svg);
+		expect(ts).toHaveLength(2);
+		expect(ts.map((t) => t.body).join(" ")).toBe("Set up Spindle in Stream Deck");
+		ts.forEach((t, i) => {
+			expect(t.attrs).toMatch(/x="74"/);
+			expect(t.attrs).toMatch(/font-size="15" font-weight="600"/);
+			expect(centreY(t.attrs, 15)).toBeCloseTo([20, 37][i], 0);
+			expect(estimateWidth(t.body, { size: 15, weight: 600 })).toBeLessThanOrEqual(120);
+		});
+	});
+
+	test('"Player not found" wraps, and the entity id below it is shown whole', () => {
+		const svg = renderForeground(null, ui({ message: { headline: "Player not found", sub: "media_player.living_room" } }), ACCENT, 0).svg;
+		const ts = texts(svg);
+		expect(svg).not.toContain("…");
+		const head = ts.filter((t) => /font-size="15"/.test(t.attrs));
+		expect(head.map((t) => t.body).join(" ")).toBe("Player not found");
+		const sub = ts.filter((t) => /font-size="13"/.test(t.attrs));
+		expect(sub.map((t) => t.body).join("")).toBe("media_player.living_room");
+		expect(centreY(sub[0].attrs, 13)).toBeCloseTo(55, 0);
+		for (const t of sub) expect(estimateWidth(t.body, { size: 13, weight: 400 })).toBeLessThanOrEqual(120);
+		expect(Math.max(...sub.map((t) => num(t.attrs, "y")))).toBeLessThan(100);
+	});
+
+	test("a giant headline never exceeds two lines and ends in an ellipsis rather than scrolling", () => {
+		const giant = `${LONG_TITLE} ${LONG_TITLE} Supercalifragilisticexpialidocious`;
+		const f = renderForeground(null, ui({ message: { headline: giant } }), ACCENT, 0);
+		const ts = texts(f.svg);
+		expect(ts).toHaveLength(2);
+		expect(ts[1].body.endsWith("…")).toBe(true);
+		for (const t of ts) expect(estimateWidth(t.body, { size: 15, weight: 600 })).toBeLessThanOrEqual(120);
 		expect(f.animating).toBe(false);
+		// One unbreakable word wider than the box is ellipsized on its line too.
+		const word = texts(renderForeground(null, ui({ message: { headline: "Supercalifragilisticexpialidocious" } }), ACCENT, 0).svg);
+		expect(word).toHaveLength(1);
+		expect(word[0].body.endsWith("…")).toBe(true);
 	});
 
 	test("dimmed adds a 0.5 black overlay after the content; the badge sits above it", () => {
