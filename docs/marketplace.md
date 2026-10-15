@@ -59,19 +59,19 @@ The README images in `docs/images/` are 600 x 300 px (the strip at 3x), so they 
 
 | File (1920 x 960) | Visible text | Use |
 |---|---|---|
-| `docs/images/marketplace/hero.png` | Title "WE ARE EMPIRE" (as whole as the scroll allows: the title is a touch wider than its window, so the last E is trimmed), artist "STARSET", "Streaming", volume "24", caption "Now Playing" | Thumbnail and Gallery 1 |
+| `docs/images/marketplace/hero.png` | Title "Protocol Flow" (fully readable; it fits its window, so there is no scroll), artist "Metal Scar Radio", "Streaming", volume "25", caption "Now Playing" | Thumbnail and Gallery 1 |
 | `docs/images/marketplace/takeover.png` | "VOLUME", "WE ARE EMPIRE", "32", caption "Volume" | Gallery 2 |
 | `docs/images/marketplace/tracks.png` | "WE ARE EMP" (title scrolling), "STARSET", "Streaming", caption "Track skip" | Gallery 3 |
 | `docs/images/marketplace/paused.png` | "WE ARE EMPIRE", "STARSET", "Streaming", pause glyph, "32", caption "Pause / play" | Gallery 4 |
 | `docs/images/marketplace/cjk.png` | Chinese title, "Metal Scar Radio", "Streaming", "24", caption "Any language" | **Optional, probably leave out:** Elgato says text in gallery images must be English, and this one shows a Chinese title and CJK cover art. Use it only if the form accepts it (it shows the real CJK glyph support); the other four are English. |
 
-The images show no device, machine or room name and no Home Assistant or Elgato logo. They do show **real album artwork as the plugin displays it** (the cover art of the playing track), which is third-party artwork: the owner must confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting (see the checklist), or else replace the images with the procedural renders from `npm run screenshots`, which use generated art. The owner's hardware photo (`docs/images/hero.jpg`, EXIF stripped), if one is added later, could replace the thumbnail.
+The images show no device, machine or room name and no Home Assistant or Elgato logo. They do show **real album artwork as the plugin displays it** (the cover art of the playing track), which is third-party artwork: the owner must confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting (see the checklist), or else replace the images with the procedural renders from `npm run screenshots`, which use generated art. The thumbnail (`marketplace/hero.png`) and the README hero (`docs/images/hero.png`) are a real capture of the track "Protocol Flow" by Metal Scar Radio from the author's deck. The owner chose a capture over the hardware photo that the design spec (section 10) called for, so there is no `hero.jpg` and none is pending.
 
 The 600 x 300 README images map to the same scenes:
 
 | File (600 x 300) | What it shows | Use |
 |---|---|---|
-| `docs/images/hero.png` | Rest view with the title at its start position, the README hero (the same frame as the thumbnail above; `rest.png` is a different frame of the same scroll) | README; composed into the thumbnail above |
+| `docs/images/hero.png` | Rest view of "Protocol Flow" by Metal Scar Radio with the play bars showing, a real capture from the author's deck and the README hero (the same frame as the thumbnail above; `rest.png` is a different capture) | README; composed into the thumbnail above |
 | `docs/images/rest.png` | Rest view, title scrolling, the Streaming source label | README only |
 | `docs/images/takeover.png` | Volume takeover over a blurred cover | README; composed into Gallery 2 |
 | `docs/images/tracks.png` | Tracks mode, forward chevrons flashing | README; composed into Gallery 3 |

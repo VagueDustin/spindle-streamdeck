@@ -10,7 +10,7 @@
 
 Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" display for any Home Assistant `media_player`. It shows the cover art, the title and artist, and the volume. Turn the dial to set the volume, press it to skip tracks, and tap the strip to play or pause. Nothing needs to change on the Home Assistant side.
 
-![Spindle's now playing strip on a Stream Deck+ dial](docs/images/hero.png)
+![Spindle's now playing strip on a Stream Deck+ dial, showing the track Protocol Flow by Metal Scar Radio: cover art, title, artist, play bars and the volume. A real capture from the author's deck.](docs/images/hero.png)
 
 ## Gallery
 
