@@ -139,7 +139,7 @@ type Scene = { cover: Rgba | null; p: PlayerState; ui: DialUi; t: number };
 const SCENES: Record<string, Scene> = {
 	rest: {
 		cover: COVERS.dusk,
-		p: player({ title: "Moth Lullaby", artist: "Marigold Telegraph" }),
+		p: player({ title: "WE ARE EMPIRE", artist: "STARSET" }),
 		ui: ui({ sourceLabel: "Turntable" }),
 		t: 1800
 	},
@@ -204,7 +204,7 @@ function renderScene(s: Scene): Rgba {
 
 const SVG_URI = "data:image/svg+xml,";
 /** Too long for the rest view's title box, so it scrolls; short enough to sit still in the takeover's. */
-const GIF_TITLE = "Seventeen Paper Kites";
+const GIF_TITLE = "WE ARE EMPIRE";
 /** Detents by frame (negative frames are before the clip): +1 to 48, then +1 and -1 back to 48. */
 const DETENTS = new Map<number, number>([
 	[-12, 1],
@@ -234,7 +234,7 @@ function gifFrames(): Rgba[] {
 		resolveDialSettings({ entityId: ENTITY, sourceLabels: "Line In = Turntable" })
 	);
 	const cover = COVERS.dusk;
-	let state = player({ title: GIF_TITLE, artist: "Marigold Telegraph", source: "Line In", volume: haVolume });
+	let state = player({ title: GIF_TITLE, artist: "STARSET", source: "Line In", volume: haVolume });
 	dial.setConnStatus({ kind: "connected", haVersion: "2025.10.0" });
 	dial.setPlayer(state);
 	dial.setCover({ key: "demo-dusk", image: cover, accent: pickAccent(cover) });
