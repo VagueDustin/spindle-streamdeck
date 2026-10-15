@@ -14,22 +14,22 @@ Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" displa
 
 ## Gallery
 
-These images come straight from Spindle's own renderer, at 3× the strip's 200×100 pixels.
+These are real frames captured from the author's Stream Deck+: exactly what the plugin sent to the dial, rendered at 3× the strip's 200×100 pixels through the same pipeline, with the backdrop image under the plugin's SVG overlay. The paused view is the one exception. It is a demo render from `npm run screenshots`, because no paused frame was captured.
 
 <table>
   <tr>
-    <td><img src="docs/images/rest.png" width="300" alt="Rest view: cover thumbnail, title, artist, play bars, a source label and the volume row"><br>Rest view</td>
-    <td><img src="docs/images/takeover.png" width="300" alt="Volume takeover: a large volume number and a wide bar with a knob"><br>Volume takeover</td>
-    <td><img src="docs/images/tracks.png" width="300" alt="Tracks mode: back and forward chevrons replace the volume row"><br>Tracks mode</td>
+    <td><img src="docs/images/rest.png" width="300" alt="Rest view: cover thumbnail, the title WE ARE EMPIRE scrolling, the artist, play bars, the Streaming source label and the volume row"><br>Rest view, title scrolling</td>
+    <td><img src="docs/images/takeover.png" width="300" alt="Volume takeover: VOLUME and the track title, a large volume number and a wide bar with a knob over a blurred copy of the cover"><br>Volume takeover</td>
+    <td><img src="docs/images/tracks.png" width="300" alt="Tracks mode: back and forward chevrons replace the volume row, with the forward chevrons flashing in the accent colour"><br>Tracks mode, skipping forward</td>
   </tr>
   <tr>
-    <td><img src="docs/images/paused.png" width="300" alt="Paused: a pause glyph replaces the play bars"><br>Paused</td>
-    <td><img src="docs/images/cjk.png" width="300" alt="A Japanese title and artist rendered with real glyphs"><br>CJK title</td>
-    <td><img src="docs/images/no-art.png" width="300" alt="No cover art: an accent gradient and a placeholder thumbnail"><br>No cover art</td>
+    <td><img src="docs/images/paused.png" width="300" alt="Paused, a demo render: a pause glyph replaces the play bars"><br>Paused (demo render)</td>
+    <td><img src="docs/images/cjk.png" width="300" alt="A Chinese title rendered with real glyphs"><br>CJK title</td>
+    <td><img src="docs/images/no-art.png" width="300" alt="No cover art: a gradient backdrop and a placeholder thumbnail"><br>No cover art</td>
   </tr>
 </table>
 
-![The volume takeover fading out to a scrolling title, then the dial turning and the takeover returning](docs/images/spindle.gif)
+![The title WE ARE EMPIRE scrolling, then a dial press into tracks mode, and a turn that flashes the forward chevrons](docs/images/spindle.gif)
 
 ## Features
 
