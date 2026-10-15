@@ -30,7 +30,7 @@ const HALF_STARVED_TICKS = 4;
 const NEVER = -1e9;
 
 type Entry = { id: string; ctl: LoopController; sink: FeedbackSink; lastSent: number };
-type Candidate = { entry: Entry; rank: number };
+type Candidate = { entry: Entry; rank: number; half: boolean };
 
 export class FrameLoop {
 	private readonly intervalMs: number;
@@ -43,6 +43,8 @@ export class FrameLoop {
 	private handle: ReturnType<typeof setInterval> | null = null;
 	private t0 = 0;
 	private tickNo = 0;
+	/** The previous send went to a half-rate dial, so full-rate dials go next (see `candidates`). */
+	private lastSendWasHalf = false;
 
 	constructor(opts: FrameLoopOptions = {}) {
 		this.intervalMs = opts.intervalMs ?? 100;
@@ -66,6 +68,9 @@ export class FrameLoop {
 		if (this.handle !== null) return;
 		this.t0 = this.now();
 		this.tickNo = 0;
+		this.lastSendWasHalf = false;
+		// tickNo restarts at 0, so ages measured against the old run would be hugely negative.
+		for (const e of this.dials.values()) e.lastSent = NEVER;
 		this.handle = (this.setIntervalImpl ?? setInterval)(() => this.beat(), this.intervalMs);
 	}
 
@@ -100,7 +105,9 @@ export class FrameLoop {
 			}
 		}
 
-		for (const { entry } of this.candidates(live, t, tickNo)) {
+		for (const { entry, half } of this.candidates(live, t, tickNo)) {
+			// A dial removed or replaced earlier in this beat (by another dial's tick, priority or frame) gets nothing.
+			if (this.dials.get(entry.id) !== entry) continue;
 			let payload: Record<string, string> | null;
 			try {
 				payload = entry.ctl.frame(t);
@@ -110,6 +117,7 @@ export class FrameLoop {
 			}
 			if (!payload) continue;
 			entry.lastSent = tickNo;
+			this.lastSendWasHalf = half;
 			this.send(entry, payload);
 			return; // the budget for this tick is spent
 		}
@@ -118,7 +126,9 @@ export class FrameLoop {
 	/**
 	 * Who may send this tick, best first:
 	 * 0. urgent dials (first frame or pending bg), oldest send first;
-	 * 1. half-rate dials that have waited past the starvation limit, oldest first;
+	 * 1. half-rate dials that have waited past the starvation limit, oldest first, unless the previous
+	 *    send was already a half-rate dial, in which case they drop to rank 3: full-rate dials then get
+	 *    at least every other tick, while half-rate dials still get the rest and never starve outright;
 	 * 2. full-rate dials, oldest first (this is the round-robin);
 	 * 3. half-rate dials that are merely due, oldest first.
 	 * Insertion order breaks remaining ties (the sort is stable).
@@ -128,13 +138,16 @@ export class FrameLoop {
 		for (const entry of live) {
 			try {
 				if (entry.ctl.urgent()) {
-					out.push({ entry, rank: 0 });
+					out.push({ entry, rank: 0, half: false });
 					continue;
 				}
 				const pri = entry.ctl.priority(t);
 				const age = tickNo - entry.lastSent;
-				if (pri === "full") out.push({ entry, rank: 2 });
-				else if (pri === "half" && age >= HALF_EVERY_TICKS) out.push({ entry, rank: age >= HALF_STARVED_TICKS ? 1 : 3 });
+				if (pri === "full") out.push({ entry, rank: 2, half: false });
+				else if (pri === "half" && age >= HALF_EVERY_TICKS) {
+					const starved = age >= HALF_STARVED_TICKS && !this.lastSendWasHalf;
+					out.push({ entry, rank: starved ? 1 : 3, half: true });
+				}
 			} catch (err) {
 				this.onError(entry.id, err);
 			}

@@ -139,6 +139,22 @@ describe("FrameLoop budget", () => {
 		expect(full.frames + half.frames).toBe(40);
 	});
 
+	it("keeps full dials at about half the sends against five half dials, and still serves every half dial", () => {
+		const h = harness();
+		const full = new FakeCtl("full");
+		const halves = Array.from({ length: 5 }, (_, i) => new FakeCtl(`h${i}`));
+		for (const c of [full, ...halves]) {
+			c.isUrgent = false;
+			if (c !== full) c.pri = "half";
+			h.add(c);
+		}
+		h.loop.start();
+		run(h, 20);
+		expect(full.frames).toBeGreaterThanOrEqual(9);
+		for (const c of halves) expect(c.frames).toBeGreaterThanOrEqual(1);
+		expect(full.frames + halves.reduce((n, c) => n + c.frames, 0)).toBe(20);
+	});
+
 	it("serves a pending bg update before every other dial", () => {
 		const h = harness();
 		const a = new FakeCtl("a");
@@ -236,6 +252,48 @@ describe("FrameLoop budget", () => {
 	});
 });
 
+describe("FrameLoop removal during a beat", () => {
+	it("is safe to remove a dial from inside a sink", () => {
+		const h = harness();
+		const b = new FakeCtl("b");
+		h.loop.add("a", new FakeCtl("a") as never, () => h.loop.remove("b"));
+		h.add(b);
+		h.loop.start();
+		expect(() => h.step()).not.toThrow();
+		expect(run(h, 3).flat()).toEqual([]);
+		expect(b.frames).toBe(0);
+	});
+
+	it("gives no frame to a dial removed by another dial's tick in the same beat", () => {
+		const h = harness();
+		const a = new FakeCtl("a");
+		const b = new FakeCtl("b");
+		a.tick = () => h.loop.remove("b");
+		// b is first in line (older lastSent is irrelevant: it is simply listed first).
+		h.add(b);
+		h.add(a);
+		h.loop.start();
+		expect(h.step()).toEqual(["a:a"]);
+		expect(b.frames).toBe(0);
+	});
+
+	it("gives no frame to a dial replaced earlier in the same beat", () => {
+		const h = harness();
+		const old = new FakeCtl("x");
+		const fresh = new FakeCtl("x");
+		const a = new FakeCtl("a");
+		a.tick = () => h.add(fresh);
+		h.add(old);
+		h.add(a);
+		h.loop.start();
+		// The replacement was not ticked this beat, so it waits; the old one must not be served.
+		expect(h.step()).toEqual(["a:a"]);
+		expect(old.frames).toBe(0);
+		expect(fresh.frames).toBe(0);
+		expect(h.step()).toEqual(["x:x"]);
+	});
+});
+
 describe("FrameLoop timing", () => {
 	it("start is idempotent and stop clears the interval once", () => {
 		const h = harness();
@@ -258,6 +316,19 @@ describe("FrameLoop timing", () => {
 		h.loop.start();
 		expect(h.setIntervalImpl).toHaveBeenCalledTimes(2);
 		expect(h.step().length).toBe(1);
+	});
+
+	it("sends a half dial again within two beats after a stop and start", () => {
+		const h = harness();
+		const a = new FakeCtl("a");
+		a.pri = "half";
+		h.add(a);
+		h.loop.start();
+		run(h, 20);
+		h.loop.stop();
+		h.loop.start();
+		const counts = run(h, 2).map((b) => b.length);
+		expect(counts.reduce((x, y) => x + y, 0)).toBeGreaterThanOrEqual(1);
 	});
 
 	it("honours a custom interval", () => {
