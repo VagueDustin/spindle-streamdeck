@@ -53,10 +53,16 @@ export function resolveDialSettings(s: DialSettings): ResolvedDialSettings {
 	};
 }
 
-/** Parses `Original = Label` lines. Keys are lower-cased and trimmed; malformed or empty lines are skipped. */
+/**
+ * Parses `Original = Label` lines. Keys are lower-cased and trimmed; malformed or empty lines are skipped.
+ * Anything but a string (per-dial settings travel inside shared profiles) gives an empty map.
+ */
 export function parseSourceLabels(text: string | undefined): Map<string, string> {
 	const labels = new Map<string, string>();
-	for (const line of (text ?? "").split(/\r?\n/)) {
+	if (typeof text !== "string") {
+		return labels;
+	}
+	for (const line of text.split(/\r?\n/)) {
 		const eq = line.indexOf("=");
 		if (eq < 0) {
 			continue;

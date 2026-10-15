@@ -65,6 +65,13 @@ test("parseSourceLabels edge cases", () => {
 	expect(parseSourceLabels("").size).toBe(0);
 });
 
+test("parseSourceLabels returns an empty map for any non-string (a crafted shared profile)", () => {
+	for (const bad of [42, true, null, {}, ["a=b"], { split: () => ["a=b"] }]) {
+		expect(parseSourceLabels(bad as never).size).toBe(0);
+	}
+	expect(resolveDialSettings({ sourceLabels: 7 as never }).labels.size).toBe(0);
+});
+
 test("mapSource trims the source before lookup", () => {
 	const m = parseSourceLabels("line in=Turntable");
 	expect(mapSource(m, "  Line In ", undefined)).toBe("Turntable");

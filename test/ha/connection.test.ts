@@ -327,6 +327,51 @@ test("stop closes the socket, rejects pending requests and never reconnects", as
 	expect(constructed).toBe(1);
 });
 
+describe("a status listener that calls stop() (re-entrant stop)", () => {
+	test("from inside unreachable: no reconnect timer and no new socket", async () => {
+		useFakeClock();
+		const conn = connect();
+		await until(() => conn.status.kind === "connected");
+		conn.onStatus((s) => {
+			if (s.kind === "unreachable") conn.stop();
+		});
+		fake.dropAll();
+		await until(() => conn.status.kind === "stopped");
+		expect(vi.getTimerCount()).toBe(0);
+		await vi.advanceTimersByTimeAsync(60000);
+		expect(constructed).toBe(1);
+		expect(conn.status).toEqual({ kind: "stopped" });
+	});
+
+	test("from inside connecting: no socket is opened", async () => {
+		useFakeClock();
+		const conn = new HaConnection({ wsUrl: fake.url, token: TOKEN, WebSocketImpl: CountingWebSocket });
+		conns.push(conn);
+		conn.onStatus((s) => {
+			if (s.kind === "connecting") conn.stop();
+		});
+		conn.start();
+		expect(conn.status).toEqual({ kind: "stopped" });
+		expect(constructed).toBe(0);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	test("from inside connected: no ping timer is left running", async () => {
+		useFakeClock();
+		const conn = new HaConnection({ wsUrl: fake.url, token: TOKEN, WebSocketImpl: CountingWebSocket });
+		conns.push(conn);
+		conn.onStatus((s) => {
+			if (s.kind === "connected") conn.stop();
+		});
+		conn.start();
+		await until(() => conn.status.kind === "stopped");
+		expect(vi.getTimerCount()).toBe(0);
+		await vi.advanceTimersByTimeAsync(60000);
+		expect(fake.sent("ping")).toHaveLength(0);
+		expect(constructed).toBe(1);
+	});
+});
+
 test("token never logged", async () => {
 	const secret = `${TOKEN}-revoked`;
 	await fake.close();

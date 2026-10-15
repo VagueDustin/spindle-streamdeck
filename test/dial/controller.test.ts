@@ -2,6 +2,7 @@ import { FALLBACK_ACCENT, type Rgb } from "../../src/art/accent";
 import type { CoverResult } from "../../src/art/cover";
 import {
 	ADOPT_GUARD_MS,
+	ALERT_THROTTLE_MS,
 	DialController,
 	FLASH_MS,
 	MODE_REVERT_MS,
@@ -398,7 +399,9 @@ describe("input in error states", () => {
 		const { c, call, alert, advance } = setup();
 		enter(c);
 		c.rotate(1);
+		advance(ALERT_THROTTLE_MS);
 		c.press();
+		advance(ALERT_THROTTLE_MS);
 		c.tap();
 		advance(1000);
 		expect(alert).toHaveBeenCalledTimes(3);
@@ -410,11 +413,33 @@ describe("input in error states", () => {
 		const { c, call, alert, advance } = setup();
 		c.setConnStatus({ kind: "unreachable", detail: "x" });
 		for (let i = 0; i < 10; i++) c.rotate(1);
-		expect(alert).toHaveBeenCalledTimes(10);
+		expect(alert).toHaveBeenCalledTimes(1);
 		expect(c.ui.volume).toBe(40);
 		c.setConnStatus(CONNECTED);
 		advance(1000);
 		expect(call).not.toHaveBeenCalled();
+	});
+
+	it("rejected input alerts at most once per 500 ms per dial", () => {
+		const { c, alert, advance } = setup();
+		const other = setup();
+		c.setConnStatus({ kind: "unreachable", detail: "x" });
+		other.c.setConnStatus({ kind: "unreachable", detail: "x" });
+		// A spun dial: 30 detents over 300 ms, then more after the window.
+		for (let i = 0; i < 30; i++) {
+			c.rotate(1);
+			advance(10);
+		}
+		expect(ALERT_THROTTLE_MS).toBe(500);
+		expect(alert).toHaveBeenCalledTimes(1);
+		other.c.rotate(1);
+		expect(other.alert).toHaveBeenCalledTimes(1);
+		advance(ALERT_THROTTLE_MS - 300 - 1);
+		c.press();
+		expect(alert).toHaveBeenCalledTimes(1);
+		advance(1);
+		c.tap();
+		expect(alert).toHaveBeenCalledTimes(2);
 	});
 
 	it("a pending volume_set is cancelled when the connection drops (Review Focus 4)", () => {

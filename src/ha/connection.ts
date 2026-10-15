@@ -191,6 +191,10 @@ export class HaConnection {
 
 	private open(): void {
 		this.setStatus({ kind: "connecting" });
+		// A status listener may have called stop(): open nothing.
+		if (!this.running) {
+			return;
+		}
 		let ws: WebSocket;
 		try {
 			ws = new this.WebSocketImpl(this.wsUrl);
@@ -255,6 +259,10 @@ export class HaConnection {
 		this.failures = Math.min(this.failures + 1, 30);
 		const safeDetail = this.redact(detail);
 		this.setStatus({ kind: "unreachable", detail: safeDetail });
+		// A status listener may have called stop(): schedule no reconnect.
+		if (!this.running) {
+			return;
+		}
 		this.log("warn", `Home Assistant unreachable (${safeDetail}); retrying in ${delay} ms`);
 		this.reconnectTimer = setTimeout(() => {
 			this.reconnectTimer = undefined;
@@ -291,6 +299,10 @@ export class HaConnection {
 				this.failures = 0;
 				const haVersion = typeof msg.ha_version === "string" ? msg.ha_version : "unknown";
 				this.setStatus({ kind: "connected", haVersion });
+				// A status listener may have called stop(): start no ping timer and no sync.
+				if (!this.running) {
+					break;
+				}
 				this.log("info", `Connected to Home Assistant ${haVersion}`);
 				this.pingTimer = setInterval(() => this.ping(), this.pingIntervalMs);
 				void this.sync();

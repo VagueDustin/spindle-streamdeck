@@ -25,12 +25,29 @@ export type PlayerState = {
 	volume?: number;
 	muted: boolean;
 	features: number;
-	/** `entity_picture_local` ?? `entity_picture`. */
+	/** `entity_picture_local`, else `entity_picture` (the first non-empty string). */
 	pictureUrl?: string;
 };
 
+/** Raw HA text is capped (in code points) before it reaches the renderer: the marquee emits it twice per frame. */
+export const MAX_TEXT_CODE_POINTS = 300;
+
 function text(value: unknown): string | undefined {
-	return typeof value === "string" ? value : undefined;
+	if (typeof value !== "string") return undefined;
+	// Cheap bound first: a string of at most 300 UTF-16 units has at most 300 code points.
+	if (value.length <= MAX_TEXT_CODE_POINTS) return value;
+	let out = "";
+	let n = 0;
+	for (const cp of value) {
+		if (n++ === MAX_TEXT_CODE_POINTS) break;
+		out += cp;
+	}
+	return out;
+}
+
+/** A non-empty string, else undefined. */
+function nonEmpty(value: unknown): string | undefined {
+	return typeof value === "string" && value ? value : undefined;
 }
 
 function volumePercent(level: unknown): number | undefined {
@@ -57,7 +74,7 @@ export function toPlayerState(entityId: string, raw: RawEntity): PlayerState {
 		volume: volumePercent(a.volume_level),
 		muted: a.is_volume_muted === true,
 		features: typeof features === "number" && Number.isFinite(features) ? features : 0,
-		pictureUrl: text(a.entity_picture_local) ?? text(a.entity_picture)
+		pictureUrl: nonEmpty(a.entity_picture_local) ?? nonEmpty(a.entity_picture)
 	};
 }
 

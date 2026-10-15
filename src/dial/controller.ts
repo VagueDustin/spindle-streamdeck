@@ -24,6 +24,8 @@ export const SKIP_COOLDOWN_MS = 600;
 export const MODE_REVERT_MS = 6000;
 /** How long the firing chevron flashes in the accent. */
 export const FLASH_MS = 350;
+/** At most one alert per dial this often: a spun dial would otherwise exceed Elgato's 10 calls/s guideline. */
+export const ALERT_THROTTLE_MS = 500;
 /** Marquee step per full-rate frame (spec 4.3: about 24 px/s at 10 fps); half-rate frames step double. */
 export const SCROLL_STEP_PX = 2.4;
 
@@ -90,6 +92,7 @@ export class DialController {
 	private skipDir = 0;
 	private cooldownUntil = -Infinity;
 	private flashUntil = -Infinity;
+	private lastAlertAt = -Infinity;
 
 	constructor(
 		private readonly deps: ControllerDeps,
@@ -286,7 +289,7 @@ export class DialController {
 	private inputPlayer(): PlayerState | null {
 		const v = this.view();
 		if (v.blocked || !v.player) {
-			this.deps.alert();
+			this.alert();
 			return null;
 		}
 		return v.player;
@@ -362,9 +365,17 @@ export class DialController {
 	/** Fires a service call; any failure, sync or async, becomes an alert on this dial. */
 	private send(service: string, data?: Record<string, unknown>): void {
 		try {
-			this.deps.call(service, data).catch(() => this.deps.alert());
+			this.deps.call(service, data).catch(() => this.alert());
 		} catch {
-			this.deps.alert();
+			this.alert();
 		}
+	}
+
+	/** Shows the alert, at most once per ALERT_THROTTLE_MS. */
+	private alert(): void {
+		const now = this.deps.now();
+		if (now - this.lastAlertAt < ALERT_THROTTLE_MS) return;
+		this.lastAlertAt = now;
+		this.deps.alert();
 	}
 }

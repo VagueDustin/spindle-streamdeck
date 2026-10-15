@@ -134,3 +134,38 @@ test("Feature constants match HA MediaPlayerEntityFeature", () => {
 		PLAY: 16384
 	});
 });
+
+test("an empty entity_picture_local does not beat a valid entity_picture", () => {
+	const both = (local: unknown) =>
+		toPlayerState(ID, { state: "playing", attributes: { entity_picture_local: local, entity_picture: "/pic/remote" } }).pictureUrl;
+	expect(both("")).toBe("/pic/remote");
+	expect(both(42)).toBe("/pic/remote");
+	expect(both("/pic/local")).toBe("/pic/local");
+	expect(toPlayerState(ID, { state: "playing", attributes: { entity_picture_local: "", entity_picture: "" } }).pictureUrl).toBeUndefined();
+});
+
+test("raw text fields are capped at 300 code points without splitting a surrogate pair", () => {
+	const long = "a".repeat(299) + "😀" + "tail".repeat(10_000);
+	const p = toPlayerState(ID, {
+		state: "playing",
+		attributes: {
+			friendly_name: long,
+			media_title: long,
+			media_artist: long,
+			media_album_name: long,
+			source: long,
+			app_name: long
+		}
+	});
+	const capped = "a".repeat(299) + "😀";
+	for (const v of [p.friendlyName, p.title, p.artist, p.album, p.source, p.appName]) {
+		expect(v).toBe(capped);
+		expect([...v!].length).toBe(300);
+	}
+	// Exactly 300 code points passes unchanged, and a cut never leaves a lone surrogate.
+	const exact = "😀".repeat(300);
+	expect(toPlayerState(ID, { state: "playing", attributes: { media_title: exact } }).title).toBe(exact);
+	const cut = toPlayerState(ID, { state: "playing", attributes: { media_title: "😀".repeat(301) } }).title!;
+	expect(cut).toBe(exact);
+	expect(cut.length).toBe(600); // 300 whole pairs, no lone surrogate
+});
