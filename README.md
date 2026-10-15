@@ -133,7 +133,7 @@ Enter the same URL you use in a browser. Spindle works out the WebSocket address
 ### Cover art doesn't show
 
 - Spindle decodes JPEG and PNG covers only. Some integrations serve WebP or AVIF; for those the strip shows the accent gradient and a placeholder thumbnail instead. Everything else still works.
-- Covers larger than 5 MB, or with very large dimensions (above roughly 3,300 pixels on a side for JPEG, or 16 megapixels for PNG), also fall back to the gradient, which keeps memory use bounded. So do interlaced PNGs and JPEGs with an unusually large number of progressive scans, which would take too long to decode.
+- Covers larger than 5 MB, or with very large dimensions (above roughly 3,300 pixels on a side for JPEG, or 12 megapixels for PNG, with no side over 16,384 pixels), also fall back to the gradient, which keeps memory use bounded. So do interlaced PNGs and JPEGs with an unusually large number of progressive scans, which would take too long to decode.
 - Covers served by Home Assistant are fetched with your token. Covers on other hosts are fetched without it, so a host that needs its own login won't work.
 - If a cover fails to load, the strip shows the accent gradient, and Spindle tries again up to 3 times, 5 seconds apart.
 

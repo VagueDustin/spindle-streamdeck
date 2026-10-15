@@ -18,9 +18,18 @@ const MAX_JPEG_MEGAPIXELS = 25;
 const MAX_JPEG_MEMORY_MB = 256;
 /** A real progressive JPEG has about 10 scans; jpeg-js walks every block once per scan, with no limit of its own. */
 const MAX_JPEG_SCANS = 100;
-/** A decoded PNG is held three times over (pngjs, the composite, the coverFit crop): 16 MP peaks near 200 MB. */
-const MAX_PNG_MEGAPIXELS = 16;
+/**
+ * A decoded PNG is held three times over (pngjs, the composite, the coverFit crop). Measured: 16 MP at
+ * 16-bit RGBA peaks at about 560-680 MB, and the peak scales with pixels, so 12 MP (in line with the
+ * JPEG path's effective ~11 MP, ruling R9) peaks at about three quarters of that.
+ */
+const MAX_PNG_MEGAPIXELS = 12;
 const MAX_PNG_PIXELS = MAX_PNG_MEGAPIXELS * 1_000_000;
+/**
+ * pngjs builds one Buffer per row, so cost follows the row count, not the pixel count: 1 x 16,000,000
+ * (exactly 16 MP) took 2.8-4 s and ~2.5 GB, and aborts V8 under a 1 GB heap. Real covers are far smaller.
+ */
+const MAX_PNG_SIDE = 16384;
 /** A real PNG has a handful of chunks; the cap keeps the chunk walk itself cheap on hostile files. */
 const MAX_PNG_CHUNKS = 10_000;
 const PNG_SIGNATURE_LENGTH = 8;
@@ -92,6 +101,9 @@ function checkPngChunks(bytes: Uint8Array): void {
 			const width = dv.getUint32(pos + 8);
 			const height = dv.getUint32(pos + 12);
 			if (width === 0 || height === 0) throw new UnsupportedImageError("PNG has a zero width or height");
+			if (width > MAX_PNG_SIDE || height > MAX_PNG_SIDE) {
+				throw new UnsupportedImageError(`PNG is wider or taller than ${MAX_PNG_SIDE} pixels`);
+			}
 			// pngjs allocates width*height*4 as soon as it has read the header: check the size first.
 			if (width * height > MAX_PNG_PIXELS) {
 				throw new Error(`PNG decode failed: image exceeds ${MAX_PNG_MEGAPIXELS} megapixels`);

@@ -143,15 +143,19 @@ describe("decodeImage", () => {
 		expect(() => decodeImage(bytes)).toThrow(/PNG/);
 	});
 
-	test("the PNG pixel cap is 16 MP: a 20 MP header is refused before allocating", () => {
+	test("the PNG pixel cap is 12 MP: a 20 MP header is refused before allocating", () => {
 		const bytes = encodePng(solid([1, 2, 3], 4));
 		const dv = new DataView(bytes.buffer, bytes.byteOffset);
 		dv.setUint32(16, 5000);
 		dv.setUint32(20, 4000);
-		expect(() => decodeImage(bytes)).toThrow(/exceeds 16 megapixels/);
-		// Exactly 16 MP passes the cap (it then fails on the 4x4 body, not on the size).
+		expect(() => decodeImage(bytes)).toThrow(/exceeds 12 megapixels/);
+		// Just over 12 MP is refused on size.
+		dv.setUint32(16, 4001);
+		dv.setUint32(20, 3000);
+		expect(() => decodeImage(bytes)).toThrow(/exceeds 12 megapixels/);
+		// Exactly 12 MP passes the cap (it then fails on the 4x4 body, not on the size).
 		dv.setUint32(16, 4000);
-		dv.setUint32(20, 4000);
+		dv.setUint32(20, 3000);
 		expect(() => decodeImage(bytes)).toThrow(/PNG/);
 		expect(() => decodeImage(bytes)).not.toThrow(/megapixels/);
 	});
@@ -220,6 +224,21 @@ describe("decodeImage", () => {
 		test("a zero width or height is refused (0 x anything passes the pixel cap, then pngjs allocates for billions of rows)", () => {
 			refusedFast(png(chunk("IHDR", ihdrData(0, 0xffff_ffff)), chunk("IEND")), /zero width or height/);
 			refusedFast(png(chunk("IHDR", ihdrData(0xffff_ffff, 0)), chunk("IEND")), /zero width or height/);
+		});
+
+		test("one very long axis is refused even under the pixel cap (pngjs builds a Buffer per row)", () => {
+			// 1 x 16,000,000 is exactly 16 MP, yet cost 2.5 GB and aborted V8 under a 1 GB heap.
+			refusedFast(png(chunk("IHDR", ihdrData(1, 16_000_000)), chunk("IEND")), /16384/);
+			refusedFast(png(chunk("IHDR", ihdrData(16_000_000, 1)), chunk("IEND")), /16384/);
+			refusedFast(png(chunk("IHDR", ihdrData(16_385, 1)), chunk("IEND")), /16384/);
+			refusedFast(png(chunk("IHDR", ihdrData(1, 16_385)), chunk("IEND")), /16384/);
+		});
+
+		test("a strip exactly 16384 long still decodes", () => {
+			const wide = decodeImage(encodePng(make(16_384, 1, (x) => [x % 256, 0, 9])));
+			expect([wide.width, wide.height]).toEqual([16_384, 1]);
+			const tall = decodeImage(encodePng(make(1, 16_384, (_x, y) => [y % 256, 0, 9])));
+			expect([tall.width, tall.height]).toEqual([1, 16_384]);
 		});
 
 		test("a PNG cut off before IEND is refused", () => {
