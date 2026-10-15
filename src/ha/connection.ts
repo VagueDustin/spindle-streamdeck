@@ -1,5 +1,5 @@
 import { redact } from "../log";
-import { certErrorCode } from "../tlsTrust";
+import { tlsHandshakeCertError, type TlsConnect } from "../tlsTrust";
 import { applyCompressed, applyStateChanged } from "./entityStream";
 import type { RawEntity } from "./playerState";
 
@@ -7,7 +7,8 @@ export type ConnStatus =
 	| { kind: "connecting" }
 	| { kind: "connected"; haVersion: string }
 	| { kind: "auth_invalid" }
-	| { kind: "unreachable"; detail: string }
+	/** `cause: "certificate"`: the TLS probe found the server's certificate is not trusted (see `detail`). */
+	| { kind: "unreachable"; detail: string; cause?: "certificate" }
 	| { kind: "stopped" };
 
 export type ScopedLogger = {
@@ -30,8 +31,8 @@ export type HaConnectionOptions = {
 	backoffMaxMs?: number;
 	/** Default: the logger passed to `setConnectionLogger`, else silent. Every line is redacted. */
 	logger?: ScopedLogger;
-	/** Default `globalThis.fetch`. Used only for the TLS probe after a wss:// socket fails before it opens. */
-	fetchImpl?: typeof fetch;
+	/** Default `tls.connect`. Used only for the TLS-only probe after a wss:// socket fails before it opens. */
+	tlsConnect?: TlsConnect;
 };
 
 export type HaState = { entity_id: string; state: string; attributes: Record<string, unknown> };
@@ -41,7 +42,7 @@ type EntityCallback = (raw: RawEntity | null) => void;
 type Pending = { resolve: (result: unknown) => void; reject: (err: Error) => void };
 type Timer = ReturnType<typeof setTimeout>;
 
-/** Bounds the one-off TLS probe (`HEAD /api/`) that diagnoses a wss:// handshake failure. */
+/** Bounds the one-off TLS handshake probe that diagnoses a wss:// failure. */
 const PROBE_TIMEOUT_MS = 5000;
 
 const SILENT: ScopedLogger = { debug() {}, info() {}, warn() {}, error() {} };
@@ -54,6 +55,21 @@ export function setConnectionLogger(logger: ScopedLogger): void {
 
 function isDict(value: unknown): value is Dict {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function certDetail(code: string): string {
+	return `certificate not trusted (${code})`;
+}
+
+function certAdvice(code: string): string {
+	switch (code) {
+		case "ERR_TLS_CERT_ALTNAME_INVALID":
+			return "its name doesn't match the host in the URL. Use the name the certificate was issued for.";
+		case "CERT_HAS_EXPIRED":
+			return "it has expired. Renew it on the Home Assistant side.";
+		default:
+			return "add its CA to this computer's certificate store, then restart Stream Deck.";
+	}
 }
 
 function errorText(err: unknown): string {
@@ -70,7 +86,7 @@ export class HaConnection {
 	private readonly backoffMinMs: number;
 	private readonly backoffMaxMs: number;
 	private readonly logger?: ScopedLogger;
-	private readonly fetchImpl: typeof fetch;
+	private readonly tlsConnect?: TlsConnect;
 
 	private current: ConnStatus = { kind: "stopped" };
 	private readonly statusListeners = new Set<(s: ConnStatus) => void>();
@@ -87,7 +103,8 @@ export class HaConnection {
 	 */
 	private streak = 0;
 	private probed = false;
-	private certDetail: string | undefined;
+	/** The certificate error code the probe found in this streak. */
+	private certCode: string | undefined;
 	private reconnectTimer?: Timer;
 	private connectTimer?: Timer;
 	private pingTimer?: ReturnType<typeof setInterval>;
@@ -114,7 +131,7 @@ export class HaConnection {
 		this.backoffMinMs = opts.backoffMinMs ?? 1000;
 		this.backoffMaxMs = opts.backoffMaxMs ?? 30000;
 		this.logger = opts.logger;
-		this.fetchImpl = opts.fetchImpl ?? ((input, init) => fetch(input, init));
+		this.tlsConnect = opts.tlsConnect;
 	}
 
 	get status(): ConnStatus {
@@ -246,8 +263,12 @@ export class HaConnection {
 				return;
 			}
 			// Failed before it opened. undici reports a TLS failure as a bare error event, so for wss://
-			// ask fetch once per streak what went wrong, and keep a certificate diagnosis for the streak.
-			this.lostConnection(this.certDetail ?? detail);
+			// probe the TLS handshake once per streak, and keep a certificate diagnosis for the streak.
+			if (this.certCode) {
+				this.lostConnection(certDetail(this.certCode), "certificate");
+			} else {
+				this.lostConnection(detail);
+			}
 			this.probeTls();
 		});
 	}
@@ -277,7 +298,7 @@ export class HaConnection {
 		}
 	}
 
-	private lostConnection(detail: string): void {
+	private lostConnection(detail: string, cause?: "certificate"): void {
 		this.dropSocket();
 		if (!this.running) {
 			return;
@@ -286,7 +307,7 @@ export class HaConnection {
 		const delay = Math.min(this.backoffMaxMs, Math.round(base * (0.8 + Math.random() * 0.4)));
 		this.failures = Math.min(this.failures + 1, 30);
 		const safeDetail = this.redact(detail);
-		this.setStatus({ kind: "unreachable", detail: safeDetail });
+		this.setStatus({ kind: "unreachable", detail: safeDetail, ...(cause ? { cause } : {}) });
 		// A status listener may have called stop(): schedule no reconnect.
 		if (!this.running) {
 			return;
@@ -302,47 +323,41 @@ export class HaConnection {
 		this.failures = 0;
 		this.streak++;
 		this.probed = false;
-		this.certDetail = undefined;
+		this.certCode = undefined;
 	}
 
 	/**
-	 * After a wss:// socket fails before opening: one `HEAD /api/` without the token, to learn whether
-	 * the certificate is the problem (fetch's error carries the TLS code; the WebSocket's does not).
+	 * After a wss:// socket fails before opening: one TLS-only handshake with HA's host and port, to
+	 * learn whether the certificate is the problem (the WebSocket's error event carries no code). No
+	 * HTTP request reaches HA, so the probe can never count as a failed login toward an IP ban.
 	 */
 	private probeTls(): void {
 		if (this.probed || !this.running) {
 			return;
 		}
-		let probeUrl: string;
+		let host: string;
+		let port: number;
 		try {
 			const url = new URL(this.wsUrl);
 			if (url.protocol !== "wss:") {
 				return;
 			}
-			probeUrl = `https://${url.host}/api/`;
+			host = url.hostname.replace(/^\[(.*)\]$/, "$1");
+			port = Number(url.port) || 443;
 		} catch {
 			return;
 		}
 		this.probed = true;
 		const streak = this.streak;
-		// Promise.resolve().then: a fetch that throws synchronously still lands in the catch below.
-		Promise.resolve()
-			.then(() => this.fetchImpl(probeUrl, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) }))
-			.then(
-				(res) => {
-					void res.body?.cancel().catch(() => undefined);
-					return undefined;
-				},
-				(err: unknown) => certErrorCode(err)
-			)
+		tlsHandshakeCertError(host, port, PROBE_TIMEOUT_MS, this.tlsConnect)
 			.then((code) => {
 				if (!code || !this.running || streak !== this.streak) {
 					return;
 				}
-				this.certDetail = `certificate not trusted (${code})`;
-				this.log("warn", `Home Assistant's certificate is not trusted (${code}). Add its CA to this computer's certificate store, then restart Stream Deck.`);
+				this.certCode = code;
+				this.log("warn", `Home Assistant's certificate is not trusted (${code}): ${certAdvice(code)}`);
 				if (this.current.kind === "unreachable") {
-					this.setStatus({ kind: "unreachable", detail: this.certDetail });
+					this.setStatus({ kind: "unreachable", detail: certDetail(code), cause: "certificate" });
 				}
 			})
 			.catch((err: unknown) => this.log("error", `TLS probe failed: ${errorText(err)}`));

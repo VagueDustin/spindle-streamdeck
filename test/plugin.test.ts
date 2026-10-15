@@ -24,7 +24,7 @@ const sd = vi.hoisted(() => {
 const trust = vi.hoisted(() => vi.fn(() => "trusted"));
 
 vi.mock("@elgato/streamdeck", () => ({ default: sd.streamDeck }));
-vi.mock("../src/tlsTrust", () => ({ trustSystemCertificates: trust }));
+vi.mock("../src/tlsTrust", async (importOriginal) => ({ ...(await importOriginal<typeof import("../src/tlsTrust")>()), trustSystemCertificates: trust }));
 vi.mock("../src/actions/spindle-dial", () => ({
 	SpindleDial: class {
 		setGlobalSettings = sd.setGlobalSettings;

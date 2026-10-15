@@ -1,5 +1,7 @@
+import { EventEmitter } from "node:events";
 import { getConnection, HaConnection, stopConnection, type ConnStatus, type HaConnectionOptions, type ScopedLogger } from "../../src/ha/connection";
 import type { RawEntity } from "../../src/ha/playerState";
+import type { TlsConnect } from "../../src/tlsTrust";
 import { FakeHa, HA_VERSION } from "../helpers/fakeHa";
 
 const TOKEN = "test-token-6f1d2a9c";
@@ -417,7 +419,7 @@ test("getConnection shares by (url, token) and replaces on a token change", asyn
 
 describe("diagnosing a wss handshake that fails before open", () => {
 	const WSS = "wss://ha.example.com/api/websocket";
-	const certError = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("tls"), { code }) });
+	const tlsError = (code: string) => Object.assign(new Error("tls"), { code });
 
 	/** A socket that never opens: an `error` (no detail, like undici's) and then a 1006 close, on the next turn. */
 	class FailingSocket extends EventTarget {
@@ -438,7 +440,44 @@ describe("diagnosing a wss handshake that fails before open", () => {
 		close(): void {}
 	}
 
-	function probing(fetchImpl: typeof fetch, extra: Partial<HaConnectionOptions> = {}) {
+	/** A TLS socket stand-in: `outcome` decides what it emits on the next turn ("hold" emits nothing). */
+	class FakeTlsSocket extends EventEmitter {
+		ended = false;
+		destroyed = false;
+		timeoutMs?: number;
+		constructor(outcome: "secure" | "hold" | Error) {
+			super();
+			setImmediate(() => {
+				if (outcome === "secure") this.emit("secureConnect");
+				else if (outcome instanceof Error) this.emit("error", outcome);
+			});
+		}
+		setTimeout(ms: number, cb: () => void): this {
+			this.timeoutMs = ms;
+			this.once("timeout", cb);
+			return this;
+		}
+		end(): this {
+			this.ended = true;
+			return this;
+		}
+		destroy(): this {
+			this.destroyed = true;
+			return this;
+		}
+	}
+
+	function fakeTls(outcome: () => "secure" | "hold" | Error) {
+		const sockets: FakeTlsSocket[] = [];
+		const tlsConnect = vi.fn<TlsConnect>(() => {
+			const socket = new FakeTlsSocket(outcome());
+			sockets.push(socket);
+			return socket;
+		});
+		return { tlsConnect, sockets };
+	}
+
+	function probing(tlsConnect: TlsConnect, extra: Partial<HaConnectionOptions> = {}) {
 		const lines: string[] = [];
 		const logger: ScopedLogger = { debug() {}, info() {}, warn: (m) => lines.push(m), error: (m) => lines.push(m) };
 		const statuses: ConnStatus[] = [];
@@ -446,7 +485,7 @@ describe("diagnosing a wss handshake that fails before open", () => {
 			wsUrl: WSS,
 			token: TOKEN,
 			WebSocketImpl: FailingSocket as unknown as typeof WebSocket,
-			fetchImpl,
+			tlsConnect,
 			logger,
 			backoffMinMs: 100,
 			backoffMaxMs: 100,
@@ -458,92 +497,134 @@ describe("diagnosing a wss handshake that fails before open", () => {
 		return { conn, lines, statuses };
 	}
 
+	const isCert = (s: ConnStatus) => s.kind === "unreachable" && s.cause === "certificate";
+	const turn = () => new Promise((resolve) => setImmediate(resolve));
+
 	beforeEach(() => {
 		FailingSocket.opens = false;
 		vi.spyOn(Math, "random").mockReturnValue(0.5); // no jitter
 	});
 
-	test("a certificate error from the probe becomes the unreachable detail, logged and without the token", async () => {
-		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE")));
-		const { conn, lines } = probing(fetchImpl);
-		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+	test("a certificate error from a TLS-only handshake marks the status, is logged, and no HTTP request is made", async () => {
+		const fetchSpy = vi.spyOn(globalThis, "fetch");
+		const { tlsConnect, sockets } = fakeTls(() => tlsError("UNABLE_TO_VERIFY_LEAF_SIGNATURE"));
+		const { conn, lines } = probing(tlsConnect);
+		await until(() => isCert(conn.status));
 
-		expect(conn.status).toEqual({ kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)" });
-		expect(fetchImpl).toHaveBeenCalledTimes(1);
-		const [url, init] = fetchImpl.mock.calls[0];
-		expect(url).toBe("https://ha.example.com/api/");
-		expect(init?.method).toBe("HEAD");
-		expect(init?.signal).toBeInstanceOf(AbortSignal);
-		expect(JSON.stringify(init?.headers ?? {})).not.toContain(TOKEN);
-		expect(JSON.stringify(init ?? {})).not.toMatch(/authorization/i);
-		expect(lines.some((l) => l.includes("certificate is not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)"))).toBe(true);
+		expect(conn.status).toEqual({ kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)", cause: "certificate" });
+		expect(tlsConnect).toHaveBeenCalledTimes(1);
+		expect(tlsConnect.mock.calls[0][0]).toEqual({ host: "ha.example.com", port: 443, servername: "ha.example.com" });
+		expect(sockets[0].timeoutMs).toBe(5000);
+		expect(sockets[0].destroyed).toBe(true);
+		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(lines.some((l) => l.includes("not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)") && l.includes("certificate store"))).toBe(true);
 		expect(lines.join("\n")).not.toContain(TOKEN);
 	});
 
-	test("one probe per failure streak, and later failures keep the certificate detail", async () => {
+	test("uses the URL's port, and leaves servername out for an IP address", async () => {
+		const { tlsConnect } = fakeTls(() => "secure");
+		const named = probing(tlsConnect, { wsUrl: "wss://ha.example.com:8443/api/websocket" });
+		await until(() => tlsConnect.mock.calls.length === 1);
+		named.conn.stop();
+		const ip = probing(tlsConnect, { wsUrl: "wss://192.168.1.10:8123/api/websocket" });
+		await until(() => tlsConnect.mock.calls.length === 2);
+		ip.conn.stop();
+		expect(tlsConnect.mock.calls.map(([opts]) => opts)).toEqual([
+			{ host: "ha.example.com", port: 8443, servername: "ha.example.com" },
+			{ host: "192.168.1.10", port: 8123 }
+		]);
+	});
+
+	test.each([
+		["ERR_TLS_CERT_ALTNAME_INVALID", "doesn't match"],
+		["CERT_HAS_EXPIRED", "has expired"],
+		["SELF_SIGNED_CERT_IN_CHAIN", "certificate store"]
+	])("the log advice for %s says it %s", async (code, advice) => {
+		const { tlsConnect } = fakeTls(() => tlsError(code));
+		const { conn, lines } = probing(tlsConnect);
+		await until(() => isCert(conn.status));
+		expect(lines.filter((l) => l.includes(code) && l.includes(advice))).toHaveLength(1);
+	});
+
+	test("one probe per failure streak, and later failures keep the certificate status", async () => {
 		useFakeClock();
-		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("SELF_SIGNED_CERT_IN_CHAIN")));
-		const { conn, statuses } = probing(fetchImpl);
-		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+		const { tlsConnect } = fakeTls(() => tlsError("SELF_SIGNED_CERT_IN_CHAIN"));
+		const { conn, statuses } = probing(tlsConnect);
+		await until(() => isCert(conn.status));
 		for (let i = 0; i < 4; i++) {
 			await vi.advanceTimersByTimeAsync(100);
 			await until(() => conn.status.kind === "unreachable");
 		}
 		expect(constructed).toBe(5);
-		expect(fetchImpl).toHaveBeenCalledTimes(1);
-		// After the diagnosis, every reconnect attempt goes connecting → the same certificate detail.
-		const unreachable = statuses.filter((s) => s.kind === "unreachable").map((s) => (s as { detail: string }).detail);
-		expect(unreachable).toEqual(["error", ...Array(5).fill("certificate not trusted (SELF_SIGNED_CERT_IN_CHAIN)")]);
+		expect(tlsConnect).toHaveBeenCalledTimes(1);
+		// After the diagnosis, every reconnect attempt goes connecting → the same certificate status.
+		const unreachable = statuses.filter((s) => s.kind === "unreachable");
+		expect(unreachable[0]).toEqual({ kind: "unreachable", detail: "error" });
+		expect(unreachable.slice(1)).toEqual(
+			Array(5).fill({ kind: "unreachable", detail: "certificate not trusted (SELF_SIGNED_CERT_IN_CHAIN)", cause: "certificate" })
+		);
 	});
 
-	test("a probe that reaches HA, or fails for another reason, leaves the detail and is not repeated in the streak", async () => {
+	test("a handshake that succeeds, fails for another reason, or times out leaves the status and is not repeated in the streak", async () => {
 		useFakeClock();
-		for (const outcome of [() => Promise.resolve(new Response(null, { status: 401 })), () => Promise.reject(certError("ECONNREFUSED"))]) {
+		const outcomes: Array<() => "secure" | "hold" | Error> = [() => "secure", () => tlsError("ECONNREFUSED"), () => "hold"];
+		for (const outcome of outcomes) {
 			constructed = 0;
-			const fetchImpl = vi.fn<typeof fetch>(outcome);
-			const { conn } = probing(fetchImpl);
-			await until(() => conn.status.kind === "unreachable");
-			await until(() => fetchImpl.mock.calls.length === 1);
-			await new Promise((resolve) => setImmediate(resolve));
+			const { tlsConnect, sockets } = fakeTls(outcome);
+			const { conn } = probing(tlsConnect);
+			await until(() => tlsConnect.mock.calls.length === 1);
+			await turn();
+			sockets[0].emit("timeout");
+			await turn();
 			expect(conn.status).toEqual({ kind: "unreachable", detail: "error" });
+			expect(sockets[0].ended || sockets[0].destroyed).toBe(true);
 			await vi.advanceTimersByTimeAsync(100);
 			await until(() => constructed === 2 && conn.status.kind === "unreachable");
-			expect(fetchImpl).toHaveBeenCalledTimes(1);
+			expect(tlsConnect).toHaveBeenCalledTimes(1);
 			conn.stop();
 		}
 	});
 
 	test("stop() and start() begin a new streak, which probes again", async () => {
-		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("CERT_HAS_EXPIRED")));
-		const { conn } = probing(fetchImpl);
-		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+		const { tlsConnect } = fakeTls(() => tlsError("CERT_HAS_EXPIRED"));
+		const { conn } = probing(tlsConnect);
+		await until(() => isCert(conn.status));
 		conn.stop();
 		conn.start();
-		await until(() => fetchImpl.mock.calls.length === 2);
+		await until(() => tlsConnect.mock.calls.length === 2);
 	});
 
 	test("a probe result that lands after stop() is dropped", async () => {
-		let settle!: (err: unknown) => void;
-		const fetchImpl = vi.fn<typeof fetch>(() => new Promise((_, reject) => (settle = reject)));
-		const { conn } = probing(fetchImpl);
-		await until(() => fetchImpl.mock.calls.length === 1);
+		const { tlsConnect, sockets } = fakeTls(() => "hold");
+		const { conn } = probing(tlsConnect);
+		await until(() => tlsConnect.mock.calls.length === 1);
 		conn.stop();
-		settle(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE"));
-		await new Promise((resolve) => setImmediate(resolve));
+		sockets[0].emit("error", tlsError("UNABLE_TO_VERIFY_LEAF_SIGNATURE"));
+		await turn();
 		expect(conn.status).toEqual({ kind: "stopped" });
 	});
 
+	test("a tlsConnect that throws is contained", async () => {
+		const tlsConnect = vi.fn(() => {
+			throw new Error("boom");
+		});
+		const { conn } = probing(tlsConnect as unknown as TlsConnect);
+		await until(() => tlsConnect.mock.calls.length === 1);
+		await turn();
+		expect(conn.status).toEqual({ kind: "unreachable", detail: "error" });
+	});
+
 	test("never probes for ws://, or for a wss socket that opened and then dropped", async () => {
-		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE")));
-		const plain = probing(fetchImpl, { wsUrl: "ws://ha.example.com/api/websocket" });
+		const { tlsConnect } = fakeTls(() => tlsError("UNABLE_TO_VERIFY_LEAF_SIGNATURE"));
+		const plain = probing(tlsConnect, { wsUrl: "ws://ha.example.com/api/websocket" });
 		await until(() => plain.conn.status.kind === "unreachable");
 		plain.conn.stop();
 
 		FailingSocket.opens = true;
-		const opened = probing(fetchImpl);
+		const opened = probing(tlsConnect);
 		await until(() => opened.conn.status.kind === "unreachable");
 		opened.conn.stop();
-		await new Promise((resolve) => setImmediate(resolve));
-		expect(fetchImpl).not.toHaveBeenCalled();
+		await turn();
+		expect(tlsConnect).not.toHaveBeenCalled();
 	});
 });

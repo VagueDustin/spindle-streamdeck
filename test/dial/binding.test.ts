@@ -346,8 +346,10 @@ describe("statusLine", () => {
 	});
 
 	it("names an untrusted certificate after the Can't reach prefix", () => {
-		const status: ConnStatus = { kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)" };
+		const status: ConnStatus = { kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)", cause: "certificate" };
 		expect(statusLine(status, "ha.example.com", undefined)).toBe("Can't reach ha.example.com: certificate not trusted");
 		expect(statusLine({ kind: "unreachable", detail: "closed (1006)" }, "ha.example.com", undefined)).toBe("Can't reach ha.example.com");
+		// The structured cause decides, not the wording of the detail.
+		expect(statusLine({ kind: "unreachable", detail: "certificate not trusted (X)" }, "ha.example.com", undefined)).toBe("Can't reach ha.example.com");
 	});
 });

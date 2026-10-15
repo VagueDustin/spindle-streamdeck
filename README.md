@@ -133,7 +133,7 @@ Enter the same URL you use in a browser. Spindle works out the WebSocket address
 
 ### HTTPS with a private or self-signed certificate
 
-Spindle trusts the certificates your operating system trusts, the same ones your browser uses. A certificate from a public authority such as Let's Encrypt, or from Home Assistant Cloud (Nabu Casa), just works.
+Spindle trusts the certificates your operating system trusts: the ones Windows and macOS trust (Edge, Chrome and Safari use the same store). A certificate from a public authority such as Let's Encrypt, or from Home Assistant Cloud (Nabu Casa), just works.
 
 If your Home Assistant uses a certificate from your own or your organisation's certificate authority (CA), add that CA to the operating system's store, then quit and restart the Stream Deck app (Spindle reads the store when it starts):
 

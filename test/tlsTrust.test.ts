@@ -2,7 +2,7 @@ import https from "node:https";
 import type { AddressInfo } from "node:net";
 import tls from "node:tls";
 import { WebSocketServer } from "ws";
-import { certErrorCode, mergeCaLists, trustSystemCertificates, type CaStore } from "../src/tlsTrust";
+import { certErrorCode, mergeCaLists, tlsHandshakeCertError, trustSystemCertificates, type CaStore } from "../src/tlsTrust";
 import { makeTestPki } from "./helpers/testCa";
 
 const A = "pem-a";
@@ -46,6 +46,19 @@ describe("trustSystemCertificates", () => {
 		const { store, state } = fakeStore([A, C], [C]);
 		expect(trustSystemCertificates(store)).toBe("already");
 		expect(state.sets).toEqual([]);
+	});
+
+	it("says trusted only when a system certificate is missing from the defaults, even if the defaults are longer", () => {
+		const { store, state } = fakeStore([A, B, C], [B]);
+		expect(trustSystemCertificates(store)).toBe("already");
+		expect(state.sets).toEqual([]);
+		const other = fakeStore([A, B, C], [B, "pem-d"]);
+		expect(trustSystemCertificates(other.store)).toBe("trusted");
+		expect(other.state.sets).toEqual([[A, B, C, "pem-d"]]);
+		// Duplicates inside the defaults must not hide a missing system certificate.
+		const dup = fakeStore([A, A], [C]);
+		expect(trustSystemCertificates(dup.store)).toBe("trusted");
+		expect(dup.state.sets).toEqual([[A, C]]);
 	});
 
 	it("does nothing on a Node without the APIs", () => {
@@ -96,6 +109,7 @@ describe("certErrorCode", () => {
 
 	it("ignores network errors that are not about the certificate", () => {
 		expect(certErrorCode(fetchFailed("ECONNREFUSED"))).toBeUndefined();
+		expect(certErrorCode(Object.assign(new Error("x"), { code: "ECONNRESET" }))).toBeUndefined();
 		expect(certErrorCode(fetchFailed("ENOTFOUND"))).toBeUndefined();
 		expect(certErrorCode(new Error("timeout"))).toBeUndefined();
 		expect(certErrorCode("nope")).toBeUndefined();
@@ -117,12 +131,14 @@ describe("Node's fetch and WebSocket with tls.setDefaultCACertificates", () => {
 	let wss: WebSocketServer;
 	let port: number;
 	let ca: string;
+	let requests = 0;
 
 	beforeAll(async () => {
 		const pki = makeTestPki();
 		ca = pki.ca;
 		original = api.getCACertificates("default");
 		server = https.createServer({ cert: pki.cert, key: pki.key }, (_req, res) => {
+			requests++;
 			res.writeHead(401);
 			res.end();
 		});
@@ -159,10 +175,18 @@ describe("Node's fetch and WebSocket with tls.setDefaultCACertificates", () => {
 		);
 		expect(certErrorCode(err)).toBe("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
 		expect(await firstMessage()).toBe("error");
+		expect(await tlsHandshakeCertError("127.0.0.1", port, 5000)).toBe("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
+		expect(await tlsHandshakeCertError("localhost", port, 5000)).toBe("UNABLE_TO_VERIFY_LEAF_SIGNATURE");
 
 		api.setDefaultCACertificates(mergeCaLists(api.getCACertificates("default"), [ca]));
 
 		expect((await head()).status).toBe(401);
 		expect(await firstMessage()).toBe("auth_required");
+		// A handshake that succeeds still sends no HTTP request.
+		const before = requests;
+		expect(await tlsHandshakeCertError("127.0.0.1", port, 5000)).toBeUndefined();
+		expect(await tlsHandshakeCertError("localhost", port, 5000)).toBeUndefined();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(requests).toBe(before);
 	});
 });

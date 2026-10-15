@@ -2,6 +2,7 @@
 // apps do. Stream Deck starts the plugin without NODE_USE_SYSTEM_CA, so Node otherwise trusts only
 // its bundled Mozilla list, and an HA served with a certificate from a private CA (one the OS
 // trusts) fails the wss:// handshake. No SDK import, so it is unit-testable.
+import { isIP } from "node:net";
 import tls from "node:tls";
 
 /** The slice of `node:tls` this module uses. Both functions are optional: older Node lacks them. */
@@ -42,14 +43,15 @@ export function trustSystemCertificates(store: CaStore = tls as CaStore, warn: (
 	}
 	try {
 		const defaults = getCACertificates.call(store, "default");
-		const merged = mergeCaLists(defaults, getCACertificates.call(store, "system"));
-		if (merged.length > defaults.length) {
-			setDefaultCACertificates.call(store, merged);
+		const system = getCACertificates.call(store, "system");
+		const known = new Set(defaults);
+		if (!system.some((cert) => !known.has(cert))) {
 			applied.add(store);
-			return "trusted";
+			return "already";
 		}
+		setDefaultCACertificates.call(store, mergeCaLists(defaults, system));
 		applied.add(store);
-		return "already";
+		return "trusted";
 	} catch (err) {
 		warn(`Could not add the operating system's certificates: ${err instanceof Error ? err.message : String(err)}`);
 		return "failed";
@@ -76,4 +78,48 @@ export function certErrorCode(err: unknown): string | undefined {
 		}
 	}
 	return undefined;
+}
+
+/** The slice of a `tls.TLSSocket` the handshake probe uses. */
+export type TlsSocketLike = {
+	on(event: string, listener: (arg?: unknown) => void): unknown;
+	setTimeout(ms: number, callback: () => void): unknown;
+	end(): unknown;
+	destroy(): unknown;
+};
+
+/** `tls.connect`, or a stand-in for tests. */
+export type TlsConnect = (options: tls.ConnectionOptions) => TlsSocketLike;
+
+/**
+ * A TLS-only handshake with host:port, verified against Node's default CA list (the same one fetch
+ * and WebSocket use). Resolves with the certificate error code, or undefined when the handshake
+ * succeeds or fails for another reason (refused, timeout, ...). Sends no HTTP request: the socket is
+ * closed as soon as the handshake completes. Never rejects.
+ */
+export function tlsHandshakeCertError(host: string, port: number, timeoutMs: number, connect: TlsConnect = tls.connect): Promise<string | undefined> {
+	return new Promise((resolve) => {
+		let socket: TlsSocketLike;
+		try {
+			// SNI takes a host name only: Node warns when servername is an IP address.
+			socket = connect(isIP(host) ? { host, port } : { host, port, servername: host });
+		} catch (err) {
+			resolve(certErrorCode(err));
+			return;
+		}
+		let settled = false;
+		const finish = (code: string | undefined) => {
+			if (settled) return;
+			settled = true;
+			socket.destroy();
+			resolve(code);
+		};
+		socket.on("secureConnect", () => {
+			socket.end();
+			finish(undefined);
+		});
+		// Stays attached, so a late error (a reset after end()) is never unhandled.
+		socket.on("error", (err) => finish(certErrorCode(err)));
+		socket.setTimeout(timeoutMs, () => finish(undefined));
+	});
 }
