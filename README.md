@@ -57,9 +57,12 @@ You need a Stream Deck+ (the model with dials and a touch strip), the Stream Dec
    2. Sign in to Home Assistant as that user.
    3. Open your **Profile** (your name at the bottom of the sidebar), then the **Security** tab.
    4. Scroll to **Long-lived access tokens** and select **Create token**. Name it `Spindle`.
+
+      <img src="docs/images/ha-token-1.png" width="480" alt="In Home Assistant, open your profile (bottom-left) → Security tab → Long-lived access tokens → Create token">
+
    5. Copy the token now. Home Assistant shows it only once.
 
-<!-- HA-SCREENSHOTS: pending. docs/images/ha-token-1.png (Profile → Security → Long-lived access tokens) and docs/images/ha-token-2.png (the Create token dialog) go here, cropped to the dialog with user and host names hidden. -->
+      <img src="docs/images/ha-token-2.png" width="480" alt="Name it (e.g. Spindle Stream Deck) and copy the token shown; Home Assistant shows it only once">
 
 ### Install and connect
 
