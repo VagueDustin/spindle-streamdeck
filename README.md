@@ -29,7 +29,7 @@ These images come straight from Spindle's own renderer (`npm run screenshots`), 
   </tr>
 </table>
 
-![A long title scrolling, then the volume takeover appearing and fading out](docs/images/spindle.gif)
+![The volume takeover fading out to a scrolling title, then the dial turning and the takeover returning](docs/images/spindle.gif)
 
 ## Features
 
@@ -63,6 +63,8 @@ You need a Stream Deck+ (the model with dials and a touch strip), the Stream Dec
 
 ### Install and connect
 
+<!-- SETUP-SCREENSHOTS: pending. Captured from the live Stream Deck app: step 2 (installing Spindle), step 3 (dragging Spindle onto a dial), step 4 (the property inspector with the URL and token, Status "Connected"), step 5 (the Media player picker). -->
+
 2. Install Spindle from the Elgato Marketplace, or download `Spindle.streamDeckPlugin` from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it.
 3. In the Stream Deck app, drag **Spindle** onto a dial. It is the **Now Playing** action in the **Spindle** category.
 4. In the dial's settings, paste your Home Assistant URL (for example `http://homeassistant.local:8123`) and the token. Wait for the **Status** line to say **Connected**.
@@ -75,7 +77,7 @@ The URL and token are shared by every Spindle dial, so you only enter them once.
 | Input | Volume mode (the default) | Tracks mode |
 |---|---|---|
 | **Turn** | Changes the volume by the volume step (1–10, default 2) per click, with an instant readout. The volume is sent 150 ms after the last click. Turning up while muted unmutes. | Every 4 clicks in one direction skips to the next or previous track, followed by a short pause. |
-| **Press** | Switches to tracks mode. | Switches back to volume mode. It also switches back by itself after 6 seconds without input. |
+| **Press** | Switches to tracks mode. | Switches back to volume mode, if the player has volume control. It also switches back by itself after 6 seconds without input. A player with no volume control stays in tracks mode. |
 | **Tap the strip** | Play/pause. | Play/pause. |
 
 - **Players that only step the volume** (they support volume up and down but not setting a level): each click sends one step, and the readout shows a bar with no number.
@@ -174,17 +176,21 @@ You need Node.js 24 and the Stream Deck app. The Stream Deck CLI (`streamdeck`) 
 
 ```sh
 npm i
+streamdeck link com.vaguedustin.spindle.sdPlugin   # once: install the dev copy into the Stream Deck app
 npm run watch                                      # build into com.vaguedustin.spindle.sdPlugin/bin, rebuild on change and restart the plugin
-streamdeck link com.vaguedustin.spindle.sdPlugin   # once, in a second terminal: install the dev copy into the Stream Deck app
 ```
+
+Run `streamdeck link` before `npm run watch`: after each rebuild, watch restarts the linked plugin, so there must be a linked copy to restart.
 
 Checks, as CI runs them:
 
 ```sh
-npx vitest run       # unit, integration and golden-render tests
 npm run typecheck
 npm run lint
+npx vitest run       # unit, integration and golden-render tests
+npm run build
 npm run scrub        # pre-publish scan for private addresses, tokens and PNG metadata
+npm run validate     # streamdeck validate on the plugin folder
 ```
 
 `npm run screenshots` regenerates the gallery and the GIF in `docs/images/` from the real renderer, using the fonts installed on your machine. The golden-render tests use a bundled Noto Sans instead, so they give the same result on every machine.

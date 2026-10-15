@@ -163,7 +163,7 @@ const SCENES: Record<string, Scene> = {
 	},
 	cjk: {
 		cover: COVERS.orchid,
-		p: player({ title: "夜に駆ける", artist: "星屑テレグラフ" }),
+		p: player({ title: "灯台の時計", artist: "星屑テレグラフ" }),
 		ui: ui({ sourceLabel: "Network", volume: 55 }),
 		t: 2600
 	},
@@ -200,44 +200,71 @@ function renderScene(s: Scene): Rgba {
 	return rasterise(buildBackdrop(s.cover, accent), fg);
 }
 
-// --- GIF: the marquee scrolling, then a volume takeover and its fade ----------
+// --- GIF: a volume takeover fading out, the marquee scrolling, then the takeover again ---
 
 const SVG_URI = "data:image/svg+xml,";
-const GIF_TITLE = "Seventeen Paper Satellites Over the Harbour";
-/** Frames (of GIF_FRAMES) before which the dial turns one detent each. */
-const DETENT_FRAMES = [9, 10, 11];
+/** Too long for the rest view's title box, so it scrolls; short enough to sit still in the takeover's. */
+const GIF_TITLE = "Seventeen Paper Kites";
+/** Detents by frame (negative frames are before the clip): +1 to 48, then +1 and -1 back to 48. */
+const DETENTS = new Map<number, number>([
+	[-12, 1],
+	[18, 1],
+	[20, -1]
+]);
 
 /**
- * Drives a real DialController on a 100 ms clock, as the frame loop does. Its last detent is at
- * frame 11, so the takeover holds until frame 26 and fades over frames 27 to 29.
+ * Drives a real DialController on a 100 ms clock, as the frame loop does, with HA echoing each
+ * volume_set. The clip opens on the held takeover from frame -12's detent at 48, which fades over
+ * frames 4 and 5. The rest view scrolls the title until the dial turns at frame 18, and the clip
+ * ends held on the takeover at 48 again. The takeover is static at full alpha, so the last frame
+ * matches the first and the loop closes cleanly; gifFrames() checks that.
  */
 function gifFrames(): Rgba[] {
 	let clock = 0;
+	let haVolume = 46;
 	const dial = new DialController(
-		{ now: () => clock, call: async () => {}, alert: () => {}, renderMode: "layered" },
+		{
+			now: () => clock,
+			call: async (service, data) => {
+				if (service === "volume_set") haVolume = Math.round(Number(data?.volume_level) * 100);
+			},
+			alert: () => {},
+			renderMode: "layered"
+		},
 		resolveDialSettings({ entityId: ENTITY, sourceLabels: "Line In = Turntable" })
 	);
 	const cover = COVERS.dusk;
+	let state = player({ title: GIF_TITLE, artist: "Marigold Telegraph", source: "Line In", volume: haVolume });
 	dial.setConnStatus({ kind: "connected", haVersion: "2025.10.0" });
-	dial.setPlayer(player({ title: GIF_TITLE, artist: "Marigold Telegraph", source: "Line In" }));
+	dial.setPlayer(state);
 	dial.setCover({ key: "demo-dusk", image: cover, accent: pickAccent(cover) });
 
 	// The wrapped copy enters the 120 px title box once the offset passes width + 28 - 120 (28 px is
-	// the marquee gap). Warm up 20 frames past that, so the GIF opens
-	// with the title's end and its wrapped copy both in view.
+	// the marquee gap). Warm up to two frames past that, so the copy is coming in as the rest view
+	// returns at frame 6.
 	const titleWidth = estimateWidth(GIF_TITLE, { size: 17, weight: 600 });
-	const warmup = Math.max(0, Math.round((titleWidth + 28 - 120) / SCROLL_STEP_PX) + 20);
+	const warmup = Math.max(12, Math.round((titleWidth + 28 - 120) / SCROLL_STEP_PX) - 2);
 	let bg = "";
 	let fg = "";
 	const frames: Rgba[] = [];
 	for (let i = -warmup; i < GIF_FRAMES; i++) {
 		clock = (i + warmup) * GIF_FRAME_MS;
-		if (DETENT_FRAMES.includes(i)) dial.rotate(1);
+		if (state.volume !== haVolume) {
+			state = { ...state, volume: haVolume };
+			dial.setPlayer(state);
+		}
+		const detent = DETENTS.get(i);
+		if (detent) dial.rotate(detent);
 		dial.tick(clock);
 		const payload = dial.frame(clock);
 		if (payload?.bg) bg = payload.bg;
 		if (payload?.fg) fg = decodeURIComponent(payload.fg.slice(SVG_URI.length));
 		if (i >= 0) frames.push(rasterise(bg, fg));
+	}
+	const first = frames[0].data;
+	const last = frames[frames.length - 1].data;
+	if (first.length !== last.length || first.some((v, k) => v !== last[k])) {
+		throw new Error("GIF loop: the last frame does not match the first");
 	}
 	return frames;
 }
