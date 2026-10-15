@@ -53,17 +53,20 @@ function decodeJpegBytes(bytes: Uint8Array): Rgba {
 	// jpeg-js bounds memory but not time: thousands of tiny progressive scans would hold the
 	// plugin's only thread for minutes. Counting is linear and runs before any decoding.
 	if (countScans(bytes) > MAX_JPEG_SCANS) throw new UnsupportedImageError(`JPEG has more than ${MAX_JPEG_SCANS} scans`);
+	let out;
 	try {
-		const out = decodeJpeg(bytes, {
+		out = decodeJpeg(bytes, {
 			maxResolutionInMP: MAX_JPEG_MEGAPIXELS,
 			maxMemoryUsageInMB: MAX_JPEG_MEMORY_MB,
 			formatAsRGBA: true,
 			useTArray: true
 		});
-		return { width: out.width, height: out.height, data: out.data };
 	} catch (e) {
 		throw new Error(`JPEG decode failed: ${message(e)}`);
 	}
+	// With no entropy data jpeg-js accepts a 0-sized frame and returns an empty image.
+	if (out.width === 0 || out.height === 0) throw new UnsupportedImageError("JPEG has a zero width or height");
+	return { width: out.width, height: out.height, data: out.data };
 }
 
 /**
@@ -84,8 +87,13 @@ function checkPngChunks(bytes: Uint8Array): void {
 		if (next > bytes.length) throw new UnsupportedImageError("PNG is truncated inside a chunk");
 		if (count === 1) {
 			if (type !== "IHDR" || length !== 13) throw new UnsupportedImageError("PNG first chunk is not a valid IHDR");
+			// The spec forbids a zero dimension, and 0 x anything slips under the pixel cap while pngjs
+			// still allocates for the other axis (a 68-byte file with height 4294967295 aborts V8).
+			const width = dv.getUint32(pos + 8);
+			const height = dv.getUint32(pos + 12);
+			if (width === 0 || height === 0) throw new UnsupportedImageError("PNG has a zero width or height");
 			// pngjs allocates width*height*4 as soon as it has read the header: check the size first.
-			if (dv.getUint32(pos + 8) * dv.getUint32(pos + 12) > MAX_PNG_PIXELS) {
+			if (width * height > MAX_PNG_PIXELS) {
 				throw new Error(`PNG decode failed: image exceeds ${MAX_PNG_MEGAPIXELS} megapixels`);
 			}
 			// The interlace method is IHDR's last byte. pngjs inflates Adam7 data with no output bound, so a

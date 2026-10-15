@@ -217,6 +217,11 @@ describe("decodeImage", () => {
 			refusedFast(Uint8Array.from(Buffer.concat([PNG_SIGNATURE, chunk("IHDR", ihdrData(1, 1)), lie])), /truncated/);
 		});
 
+		test("a zero width or height is refused (0 x anything passes the pixel cap, then pngjs allocates for billions of rows)", () => {
+			refusedFast(png(chunk("IHDR", ihdrData(0, 0xffff_ffff)), chunk("IEND")), /zero width or height/);
+			refusedFast(png(chunk("IHDR", ihdrData(0xffff_ffff, 0)), chunk("IEND")), /zero width or height/);
+		});
+
 		test("a PNG cut off before IEND is refused", () => {
 			const v = valid();
 			refusedFast(v.subarray(0, v.length - 12), /truncated/);
@@ -253,6 +258,30 @@ describe("decodeImage", () => {
 			atCap = e;
 		}
 		expect(atCap).not.toBeInstanceOf(UnsupportedImageError);
+	});
+
+	test("a JPEG declaring zero width or height is refused, not returned as an empty image", () => {
+		// With no entropy data jpeg-js accepts a 0-sized frame and hands back a 0-length image.
+		const base = encodeJpeg(gradient(16, 16));
+		const sof = base.findIndex((v, i) => v === 0xff && base[i + 1] === 0xc0);
+		const sos = base.findIndex((v, i) => v === 0xff && base[i + 1] === 0xda);
+		const headerOnly = (width: number, height: number) => {
+			const bytes = Uint8Array.from([...base.subarray(0, sos + 2 + ((base[sos + 2] << 8) | base[sos + 3])), 0xff, 0xd9]);
+			const dv = new DataView(bytes.buffer);
+			dv.setUint16(sof + 5, height);
+			dv.setUint16(sof + 7, width);
+			return bytes;
+		};
+		for (const [w, h] of [
+			[0, 16],
+			[16, 0],
+			[0, 65535]
+		]) {
+			const t0 = performance.now();
+			expect(() => decodeImage(headerOnly(w, h))).toThrow(UnsupportedImageError);
+			expect(() => decodeImage(headerOnly(w, h))).toThrow(/zero width or height/);
+			expect(performance.now() - t0).toBeLessThan(100);
+		}
 	});
 
 	test("WebP bytes throw UnsupportedImageError", () => {
