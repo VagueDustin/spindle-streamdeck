@@ -11,11 +11,12 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 
 import { CoverLoader } from "../art/cover";
+import { openCapture } from "../capture";
 import { bindDial, mediaPlayerItems, statusLine } from "../dial/binding";
 import { DialController } from "../dial/controller";
 import { getConnection, stopConnection, type HaConnection } from "../ha/connection";
 import { redact } from "../log";
-import { FrameLoop } from "../loop";
+import { FrameLoop, type FeedbackSink } from "../loop";
 import { LAYOUT_PATH } from "../render/geometry";
 import { normalizeHaUrl, resolveDialSettings, type DialSettings, type GlobalSettings, type ResolvedDialSettings } from "../settings";
 
@@ -54,6 +55,8 @@ export class SpindleDial extends SingletonAction<DialSettings> {
 	private config: Config | null | undefined = undefined;
 	private covers: CoverLoader | null = null;
 	private hub: Hub | null = null;
+	/** Dev-only (SPINDLE_CAPTURE=1 builds); normal builds compile this away. Null when off. */
+	private readonly capture = __SPINDLE_CAPTURE__ ? openCapture({ info: (m) => this.info(m), warn: (m) => this.warn(m) }) : null;
 
 	/** Applies the global settings (from startup and from every PI change). */
 	setGlobalSettings(s: GlobalSettings): void {
@@ -103,7 +106,8 @@ export class SpindleDial extends SingletonAction<DialSettings> {
 			const old = this.dials.get(id);
 			if (old) this.unbind(old);
 			this.dials.set(id, d);
-			this.loop.add(id, d.ctl, (payload) => dialAction.setFeedback(payload));
+			const sink: FeedbackSink = (payload) => dialAction.setFeedback(payload);
+			this.loop.add(id, d.ctl, __SPINDLE_CAPTURE__ && this.capture ? this.capture.wrap(dialAction.coordinates.column, sink) : sink);
 			this.loop.start();
 			this.ensureHub();
 			this.bind(d);

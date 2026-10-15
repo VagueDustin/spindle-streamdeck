@@ -1,43 +1,27 @@
 // Renders the README gallery and GIF from the real renderer. Run with `npm run screenshots`.
 //
 // Each image is composed as the device composes it: the `bg` PNG from buildBackdrop under the
-// `fg` SVG from renderForeground, with the takeover plate supplied as the controller supplies it.
-// Rasterised at 3x (600x300) by resvg with the machine's system fonts, so `Segoe UI` and the CJK
-// fallback (Yu Gothic UI on Windows) match what the deck shows. The covers are abstract,
-// generated here from fixed seeds; the track and artist names are made up.
-import { Resvg } from "@resvg/resvg-js";
+// `fg` SVG from renderForeground, with the takeover plate supplied as the controller supplies it,
+// rasterised at 3x (600x300) by scripts/gallery.ts. The covers are abstract, generated here from
+// fixed seeds; the track and artist names are made up.
+//
+// The README shows real captures where docs/images/captures.json lists them (`npm run
+// gallery:captures`); this script skips those, so it never overwrites a capture. It stays for
+// development and for whatever the manifest does not provide (hero.png, until a capture or photo).
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
-import { PNG } from "pngjs";
 import { FALLBACK_ACCENT, pickAccent, type Rgb } from "../src/art/accent";
 import type { Rgba } from "../src/art/image";
 import { DialController, SCROLL_STEP_PX } from "../src/dial/controller";
 import { Feature, type PlayerState } from "../src/ha/playerState";
 import { buildBackdrop, buildTakeoverPlate } from "../src/render/backdrop";
-import { composeSingle, renderForeground, type DialUi } from "../src/render/foreground";
+import { renderForeground, type DialUi } from "../src/render/foreground";
 import { estimateWidth } from "../src/render/textWidth";
 import { resolveDialSettings } from "../src/settings";
+import { readManifest } from "./compose-captures";
+import { OUT, rasterise, writeGif, writePng } from "./gallery";
 
-type GifEncoder = {
-	writeFrame(index: Uint8Array, width: number, height: number, opts: Record<string, unknown>): void;
-	finish(): void;
-	bytes(): Uint8Array;
-};
-type GifEnc = {
-	GIFEncoder(): GifEncoder;
-	quantize(rgba: Uint8Array, maxColors: number, opts?: Record<string, unknown>): number[][];
-	applyPalette(rgba: Uint8Array, palette: number[][], format?: string): Uint8Array;
-};
-// gifenc's CommonJS bundle hides its named exports from Node's ESM loader, so load it via require.
-const { GIFEncoder, quantize, applyPalette } = createRequire(import.meta.url)("gifenc") as GifEnc;
-
-const OUT = path.resolve(import.meta.dirname, "..", "docs", "images");
-const SCALE = 3;
-const WIDTH = 200 * SCALE;
-const HEIGHT = 100 * SCALE;
 const COVER_SIZE = 240;
-const FONT = { loadSystemFonts: true, defaultFontFamily: "Segoe UI", sansSerifFamily: "Segoe UI" };
 const GIF_FRAME_MS = 100;
 const GIF_FRAMES = 30;
 
@@ -177,23 +161,6 @@ const SCENES: Record<string, Scene> = {
 
 // --- rendering --------------------------------------------------------------
 
-/** The bg PNG under the fg SVG (as one SVG, the backdrop embedded as <image>), rasterised at 3x. */
-function rasterise(bgUri: string, fgSvg: string): Rgba {
-	const resvg = new Resvg(composeSingle(bgUri, fgSvg), { fitTo: { mode: "width", value: WIDTH }, font: FONT });
-	// asPng() demultiplies alpha; decoding it gives straight RGBA.
-	const png = PNG.sync.read(resvg.render().asPng());
-	return { width: png.width, height: png.height, data: new Uint8Array(png.data) };
-}
-
-/** Writes through pngjs, which emits no text or metadata chunks (the scrub checks). */
-function writePng(name: string, img: Rgba): void {
-	const png = new PNG({ width: img.width, height: img.height });
-	png.data = Buffer.from(img.data);
-	const file = path.join(OUT, name);
-	fs.writeFileSync(file, PNG.sync.write(png, { colorType: 2 }));
-	console.log(`${path.relative(process.cwd(), file)} (${img.width}x${img.height})`);
-}
-
 function renderScene(s: Scene): Rgba {
 	const accent = s.cover ? pickAccent(s.cover) : FALLBACK_ACCENT;
 	const fg = renderForeground(s.p, { ...s.ui, plate: buildTakeoverPlate(s.cover, accent) }, accent, s.t).svg;
@@ -269,61 +236,18 @@ function gifFrames(): Rgba[] {
 	return frames;
 }
 
-/** 4x4 Bayer matrix: a fixed dither pattern, so unchanged pixels stay identical between frames. */
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-/** Peak-to-peak dither amplitude, in 8-bit levels; enough to break up banding in the blurred backdrop. */
-const DITHER = 10;
-
-function ordered(img: Rgba): Uint8Array {
-	const out = new Uint8Array(img.data);
-	for (let y = 0; y < img.height; y++) {
-		for (let x = 0; x < img.width; x++) {
-			const d = (BAYER[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * DITHER;
-			const o = (y * img.width + x) * 4;
-			for (let c = 0; c < 3; c++) out[o + c] = Math.min(255, Math.max(0, Math.round(img.data[o + c] + d)));
-		}
-	}
-	return out;
-}
-
-/**
- * One global palette for every frame (no shimmer between frames), an ordered dither against
- * banding, and every pixel unchanged since the previous frame written as transparent over it,
- * so static areas cost almost nothing.
- */
-function encodeGif(frames: Rgba[]): Uint8Array {
-	const all = new Uint8Array(frames.length * frames[0].data.length);
-	frames.forEach((f, i) => all.set(f.data, i * f.data.length));
-	const palette = quantize(all, 255);
-	const transparentIndex = palette.length;
-	palette.push([0, 0, 0]);
-	const gif = GIFEncoder();
-	let prev: Uint8Array | null = null;
-	for (const f of frames) {
-		const index = applyPalette(ordered(f), palette);
-		const out = Uint8Array.from(index);
-		if (prev) for (let p = 0; p < out.length; p++) if (index[p] === prev[p]) out[p] = transparentIndex;
-		gif.writeFrame(out, f.width, f.height, {
-			...(prev ? {} : { palette }),
-			delay: GIF_FRAME_MS,
-			transparent: prev !== null,
-			transparentIndex,
-			dispose: 1
-		});
-		prev = index;
-	}
-	gif.finish();
-	return gif.bytes();
-}
+// Outputs the capture manifest provides ("spindle" is the GIF) are left alone.
+const manifest = readManifest();
+const captured = new Set([...Object.keys(manifest?.stills ?? {}), ...(manifest?.gif ? ["spindle"] : [])]);
+if (captured.size > 0) console.log(`skipped, captured (docs/images/captures.json): ${[...captured].join(", ")}`);
+// Until the hardware photo (hero.jpg) lands, the README hero is the rest render.
+const heroFromRest = !fs.existsSync(path.join(OUT, "hero.jpg"));
 
 fs.mkdirSync(OUT, { recursive: true });
 for (const [name, scene] of Object.entries(SCENES)) {
+	const outputs = [name, ...(name === "rest" && heroFromRest ? ["hero"] : [])].filter((o) => !captured.has(o));
+	if (outputs.length === 0) continue;
 	const img = renderScene(scene);
-	writePng(`${name}.png`, img);
-	// Until the hardware photo (hero.jpg) lands, the README hero is the rest render.
-	if (name === "rest" && !fs.existsSync(path.join(OUT, "hero.jpg"))) writePng("hero.png", img);
+	for (const o of outputs) writePng(`${o}.png`, img);
 }
-const gif = encodeGif(gifFrames());
-const gifFile = path.join(OUT, "spindle.gif");
-fs.writeFileSync(gifFile, gif);
-console.log(`${path.relative(process.cwd(), gifFile)} (${WIDTH}x${HEIGHT}, ${GIF_FRAMES} frames, ${Math.round(gif.length / 1024)} KB)`);
+if (!captured.has("spindle")) writeGif("spindle.gif", gifFrames(), GIF_FRAME_MS);

@@ -4,3 +4,5 @@ com.vaguedustin.spindle.sdPlugin/logs/
 *.streamDeckPlugin
 .scrub-local.txt
 out/
+# Frames recorded by a SPINDLE_CAPTURE=1 build (src/capture.ts)
+/capture/

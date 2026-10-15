@@ -33,7 +33,9 @@ const config = {
 		replace({
 			preventAssignment: true,
 			values: {
-				__SPINDLE_VERSION__: JSON.stringify(pkg.version)
+				__SPINDLE_VERSION__: JSON.stringify(pkg.version),
+				// Dev-only frame capture (src/capture.ts): on only for `SPINDLE_CAPTURE=1 npm run build`.
+				__SPINDLE_CAPTURE__: JSON.stringify(process.env.SPINDLE_CAPTURE === "1")
 			}
 		}),
 		typescript({
