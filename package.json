@@ -13,6 +13,7 @@
 		"typecheck": "tsc --noEmit",
 		"validate": "streamdeck validate com.vaguedustin.spindle.sdPlugin",
 		"icons": "tsx scripts/build-icons.ts",
+		"scrub": "tsx scripts/scrub.ts",
 		"version": "node scripts/sync-version.mjs && git add com.vaguedustin.spindle.sdPlugin/manifest.json",
 		"gen:widths": "tsx scripts/gen-width-table.ts"
 	},

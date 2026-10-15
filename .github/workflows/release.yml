@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history so the scrub can check every commit's author and committer email.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+      - run: npm run scrub
+      - run: npx @elgato/cli@1.10 validate com.vaguedustin.spindle.sdPlugin --no-update-check
+      - run: npx @elgato/cli@1.10 pack com.vaguedustin.spindle.sdPlugin --output out --force
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          notes="${RUNNER_TEMP}/release-notes.md"
+          if [ -f CHANGELOG.md ]; then
+            # Lines under the "## [x.y.z]" (or "## x.y.z") heading that matches the tag, up to the next "## ".
+            awk -v v="$version" '
+              /^## / {
+                if (found) exit
+                h = $0
+                sub(/^## +\[?v?/, "", h)
+                if (index(h, v) == 1 && substr(h, length(v) + 1, 1) ~ /^([] ]|$)/) found = 1
+                next
+              }
+              found
+            ' CHANGELOG.md > "$notes"
+          fi
+          if ! grep -q '[^[:space:]]' "$notes" 2>/dev/null; then
+            echo "See CHANGELOG.md" > "$notes"
+          fi
+          cat "$notes"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.streamDeckPlugin
+          body_path: ${{ runner.temp }}/release-notes.md
