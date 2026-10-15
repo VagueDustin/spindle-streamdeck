@@ -1,6 +1,6 @@
 {
 	"name": "spindle-streamdeck",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Now Playing for Home Assistant on a Stream Deck+ dial.",
 	"license": "MIT",
 	"private": true,
