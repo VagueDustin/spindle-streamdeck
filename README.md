@@ -66,12 +66,15 @@ You need a Stream Deck+ (the model with dials and a touch strip), the Stream Dec
 
 ### Install and connect
 
-<!-- SETUP-SCREENSHOTS: pending. Captured from the live Stream Deck app: step 2 (installing Spindle), step 3 (dragging Spindle onto a dial), step 4 (the property inspector with the URL and token, Status "Connected"), step 5 (the Media player picker). -->
-
 2. Install Spindle from the Elgato Marketplace, or download `Spindle.streamDeckPlugin` from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it.
 3. In the Stream Deck app, drag **Spindle** onto a dial. It is the **Now Playing** action in the **Spindle** category.
+
+   <img src="docs/images/setup-action.png" width="300" alt="Spindle → Now Playing in the Stream Deck action list">
+
 4. In the dial's settings, paste your Home Assistant URL (for example `http://homeassistant.local:8123`) and the token. Wait for the **Status** line to say **Connected**.
 5. Pick a media player from the **Media player** list. Its now-playing info appears on the strip.
+
+   <img src="docs/images/setup-settings.png" width="480" alt="Spindle settings: Home Assistant URL, access token, status line and media player picker">
 
 The URL and token are shared by every Spindle dial, so you only enter them once. Each dial picks its own media player, volume step, source labels and tracks mode.
 
