@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Rgba } from "../../src/art/image";
 import { FALLBACK_ACCENT, pickAccent, type Rgb } from "../../src/art/accent";
 import type { PlayerState } from "../../src/ha/playerState";
-import { buildBackdrop } from "../../src/render/backdrop";
+import { buildBackdrop, buildTakeoverPlate } from "../../src/render/backdrop";
 import { renderForeground, type DialUi } from "../../src/render/foreground";
 import { compose, readPng, toPng } from "../helpers/compose";
 import { make } from "../helpers/synth";
@@ -55,7 +55,10 @@ type Scenario = { cover: Rgba | null; accent: Rgb; p: PlayerState | null; ui: Di
 const SCENARIOS: Record<string, Scenario> = {
 	"rest-playing": { cover: COVER, accent: ACCENT, p: player(), ui: ui() },
 	"rest-paused": { cover: COVER, accent: ACCENT, p: player({ status: "paused" }), ui: ui() },
+	"rest-muted": { cover: COVER, accent: ACCENT, p: player(), ui: ui({ muted: true }) },
 	takeover: { cover: COVER, accent: ACCENT, p: player(), ui: ui({ takeoverAlpha: 1, volume: 64 }) },
+	"takeover-fade-50": { cover: COVER, accent: ACCENT, p: player(), ui: ui({ takeoverAlpha: 0.5, volume: 64 }) },
+	"takeover-no-art": { cover: null, accent: FALLBACK_ACCENT, p: player(), ui: ui({ takeoverAlpha: 1, volume: 64 }) },
 	tracks: { cover: COVER, accent: ACCENT, p: player(), ui: ui({ mode: "tracks", flashDir: 1 }) },
 	"no-art": { cover: null, accent: FALLBACK_ACCENT, p: player(), ui: ui() },
 	"message-check-token": { cover: null, accent: FALLBACK_ACCENT, p: null, ui: ui({ message: { headline: "Check token" } }) },
@@ -84,7 +87,8 @@ function diffShare(a: Rgba, b: Rgba): number {
 describe("golden renders", () => {
 	for (const [name, s] of Object.entries(SCENARIOS)) {
 		test(name, () => {
-			const fg = renderForeground(s.p, s.ui, s.accent, 0).svg;
+			// As the controller does: the plate is always supplied; only takeover frames use it.
+			const fg = renderForeground(s.p, { ...s.ui, plate: buildTakeoverPlate(s.cover, s.accent) }, s.accent, 0).svg;
 			const img = compose(buildBackdrop(s.cover, s.accent), fg);
 			const path = `${DIR}/${name}.png`;
 			if (UPDATE) {

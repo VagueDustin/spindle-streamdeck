@@ -5,7 +5,7 @@ import { FALLBACK_ACCENT } from "../art/accent";
 import type { CoverResult } from "../art/cover";
 import type { ConnStatus } from "../ha/connection";
 import { Feature, has, type PlayerState } from "../ha/playerState";
-import { buildBackdrop } from "../render/backdrop";
+import { buildBackdrop, buildTakeoverPlate } from "../render/backdrop";
 import { composeSingle, renderForeground, type DialUi, type Frame } from "../render/foreground";
 import { RENDER_MODE } from "../render/mode";
 import { mapSource, type ResolvedDialSettings } from "../settings";
@@ -66,6 +66,8 @@ export class DialController {
 
 	private cover: CoverResult | null = null;
 	private bgUri: string;
+	/** The takeover plate (ruling R20), built with the backdrop; only takeover frames embed it. */
+	private plateUri: string;
 	private bgPending = true;
 	private firstSent = false;
 	/** Something the fg shows changed since the last sent frame. */
@@ -96,6 +98,7 @@ export class DialController {
 		this.renderMode = deps.renderMode ?? RENDER_MODE;
 		this.settings = settings;
 		this.bgUri = buildBackdrop(null, FALLBACK_ACCENT);
+		this.plateUri = buildTakeoverPlate(null, FALLBACK_ACCENT);
 	}
 
 	updateSettings(s: ResolvedDialSettings): void {
@@ -139,6 +142,7 @@ export class DialController {
 		if ((c?.key ?? null) === (this.cover?.key ?? null)) return;
 		this.cover = c;
 		this.bgUri = buildBackdrop(c?.image ?? null, c?.accent ?? FALLBACK_ACCENT);
+		this.plateUri = buildTakeoverPlate(c?.image ?? null, c?.accent ?? FALLBACK_ACCENT);
 		this.bgPending = true;
 		this.dirty = true;
 	}
@@ -249,7 +253,8 @@ export class DialController {
 			message: v.message,
 			dimmed: v.dimmed,
 			badge: v.badge,
-			buffering: p?.status === "buffering"
+			buffering: p?.status === "buffering",
+			plate: this.plateUri
 		};
 	}
 

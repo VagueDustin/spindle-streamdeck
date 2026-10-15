@@ -1,6 +1,6 @@
 import { FALLBACK_EM, WIDTHS } from "./widths.generated";
 
-export type FontSpec = { size: number; weight: 400 | 500 | 600 | 700 };
+export type FontSpec = { size: number; weight: 400 | 600 | 700 };
 
 /** Advance widths ignore kerning and hinting, so the estimate is padded to err on the long side. */
 const SAFETY_FACTOR = 1.06;
@@ -27,7 +27,7 @@ function isWide(cp: number): boolean {
 	return WIDE_RANGES.some(([lo, hi]) => cp >= lo && cp <= hi);
 }
 
-/** Total advance of `text` in em, with weight 500 resolved as the mean of 400 and 600. */
+/** Total advance of `text` in em. */
 function emWidth(text: string, weight: 400 | 600 | 700): number {
 	const table = WIDTHS[weight];
 	let total = 0;
@@ -42,6 +42,5 @@ function emWidth(text: string, weight: 400 | 600 | 700): number {
 
 /** Estimated rendered width in px, already including the +6% safety factor. */
 export function estimateWidth(text: string, font: FontSpec): number {
-	const em = font.weight === 500 ? (emWidth(text, 400) + emWidth(text, 600)) / 2 : emWidth(text, font.weight);
-	return em * font.size * SAFETY_FACTOR;
+	return emWidth(text, font.weight) * font.size * SAFETY_FACTOR;
 }

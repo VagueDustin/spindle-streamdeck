@@ -1,4 +1,4 @@
-import type { Rgb } from "../../src/art/accent";
+import { FALLBACK_ACCENT, type Rgb } from "../../src/art/accent";
 import type { CoverResult } from "../../src/art/cover";
 import {
 	ADOPT_GUARD_MS,
@@ -14,6 +14,7 @@ import {
 } from "../../src/dial/controller";
 import type { ConnStatus } from "../../src/ha/connection";
 import { Feature, type PlayerState } from "../../src/ha/playerState";
+import { buildTakeoverPlate } from "../../src/render/backdrop";
 import type { ResolvedDialSettings } from "../../src/settings";
 
 const ENTITY = "media_player.living_room";
@@ -550,6 +551,39 @@ describe("frames and priority", () => {
 		expect(c.urgent()).toBe(false);
 		c.setCover(null);
 		expect(c.frame(Date.now())?.bg).toBe(first?.bg);
+	});
+
+	// Ruling R20: one takeover plate per cover, built with the backdrop and cached with it.
+	it("builds the takeover plate once per cover and hands it to the renderer", () => {
+		const { c } = setup();
+		expect(c.ui.plate).toBe(buildTakeoverPlate(null, FALLBACK_ACCENT));
+		const red = cover("a", [200, 40, 40]);
+		c.setCover(red);
+		const plate = c.ui.plate;
+		expect(plate).toBe(buildTakeoverPlate(red.image, red.accent));
+		c.frame(Date.now());
+		c.setPlayer(player({ title: "Other" }));
+		c.frame(Date.now());
+		expect(c.ui.plate).toBe(plate);
+		c.setCover(cover("b", [40, 40, 200]));
+		expect(c.ui.plate).not.toBe(plate);
+		c.setCover(null);
+		expect(c.ui.plate).toBe(buildTakeoverPlate(null, FALLBACK_ACCENT));
+	});
+
+	it("only takeover frames carry the plate, never rest frames or bg", () => {
+		const { c, advance } = setup();
+		c.setCover(cover("a", [200, 40, 40]));
+		const plate = c.ui.plate!;
+		const rest = c.frame(Date.now());
+		expect(fgSvg(rest)).not.toContain("<image");
+		expect(rest?.bg).not.toBe(plate);
+		c.rotate(1);
+		const takeover = fgSvg(c.frame(Date.now()));
+		expect(takeover).toContain(`<image href="${plate}"`);
+		advance(TAKEOVER_MS + TAKEOVER_FADE_MS);
+		expect(c.ui.takeoverAlpha).toBe(0);
+		expect(fgSvg(c.frame(Date.now()))).not.toContain("<image");
 	});
 
 	it("single mode sends only fg, with the backdrop embedded", () => {

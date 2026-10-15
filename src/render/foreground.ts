@@ -23,6 +23,8 @@ export type DialUi = {
 	/** e.g. "Reconnecting…" */
 	badge?: string;
 	buffering: boolean;
+	/** The takeover plate (ruling R20), a PNG data URI drawn under the takeover only; built once per cover. */
+	plate?: string;
 };
 
 /** `animating`: content moves (bars or scrolling text). `halfRate`: the bars are the only motion. */
@@ -30,8 +32,9 @@ export type Frame = { svg: string; animating: boolean; halfRate: boolean };
 
 // Every y below is a text line's vertical centre, as in the predecessor (canvas
 // textBaseline "middle"). The deck's SVG renderer has no dominant-baseline, so the
-// baseline is placed BASELINE em below the centre, which centres cap height on the line.
-const BASELINE = 0.35;
+// baseline is placed BASELINE em below the centre: where Chromium put Segoe UI's
+// baseline for "middle" (0.26 to 0.29 em across 11 to 44 px).
+const BASELINE = 0.28;
 const TEXT_X = 74;
 const TEXT_W = 120;
 const TITLE_Y = 20;
@@ -41,12 +44,14 @@ const ARTIST_FONT: FontSpec = { size: 13, weight: 400 };
 const MARQUEE_GAP = 28;
 const BARS_X = 74;
 const BARS_BASE = 64;
-const SOURCE = { x: 92, y: 58, w: 102, font: { size: 11, weight: 500 } as FontSpec };
+const SOURCE = { x: 92, y: 58, w: 102, font: { size: 11, weight: 400 } as FontSpec };
 const ROW_Y = 83;
 const TRACK = { x: 8, y: ROW_Y - 3, w: 150, h: 6 };
 const VOLUME_X = 194;
 const MUTE_RED = 'fill="rgb(255,110,110)"';
-const TAKEOVER = { scrim: 0.62, barX: 12, barY: 80, barW: STRIP_W - 24, barH: 8, knobR: 6 };
+const MUTE_FONT: FontSpec = { size: 14, weight: 700 };
+/** `fallbackScrim` darkens the rest view only when no plate was supplied. */
+const TAKEOVER = { fallbackScrim: 0.62, barX: 12, barY: 80, barW: STRIP_W - 24, barH: 8, knobR: 6 };
 const CHEVRON = { size: 16, back: 60, forward: 140 };
 
 const WHITE = 'fill="#fff"';
@@ -81,7 +86,8 @@ type Drawn = { svg: string; scrolls: boolean };
 
 /**
  * Text in a box: drawn plainly when the estimate fits, otherwise two copies 28 px apart
- * scroll by `offset` inside a clip the width of the box.
+ * scroll by `offset` inside a mask the width of the box. Ruling R19: the deck's Qt SVG
+ * renderer ignores clipPath (and paints its rect black), but honours a mask in <defs>.
  */
 function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string, offset: number): Drawn {
 	const body = escapeXml(raw);
@@ -89,9 +95,9 @@ function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string
 	if (w <= box.w) return { svg: text(box.x, y, font, paint, body), scrolls: false };
 	const span = w + MARQUEE_GAP;
 	const x = box.x - (((offset % span) + span) % span);
-	const clip = `<clipPath id="${box.id}"><rect x="${box.x}" y="0" width="${box.w}" height="${STRIP_H}"/></clipPath>`;
+	const mask = `<defs><mask id="${box.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${STRIP_W}" height="${STRIP_H}"><rect x="${box.x}" y="0" width="${box.w}" height="${STRIP_H}" ${WHITE}/></mask></defs>`;
 	return {
-		svg: `${clip}<g clip-path="url(#${box.id})">${text(x, y, font, paint, body)}${text(x + span, y, font, paint, body)}</g>`,
+		svg: `${mask}<g mask="url(#${box.id})">${text(x, y, font, paint, body)}${text(x + span, y, font, paint, body)}</g>`,
 		scrolls: true
 	};
 }
@@ -140,7 +146,7 @@ function pauseGlyph(): string {
 	return bar(BARS_X + 1) + bar(BARS_X + 7);
 }
 
-/** The source label beside the bars, clipped (not scrolled) to the strip's right margin. */
+/** The source label beside the bars, masked (not scrolled) to the strip's right margin. */
 function sourceLabel(label: string): string {
 	return marquee({ id: "source", x: SOURCE.x, w: SOURCE.w }, label, SOURCE.y, SOURCE.font, white(0.6), 0).svg;
 }
@@ -153,20 +159,21 @@ function volumeRow(ui: DialUi, accent: Rgb): string {
 	let s = bar(TRACK.w, white(0.22));
 	if (frac > 0) s += bar(Math.max(TRACK.w * frac, TRACK.h), ui.muted ? white(0.35) : `fill="${css(accent)}"`);
 	const end = ' text-anchor="end"';
-	if (ui.muted) s += text(VOLUME_X, ROW_Y, { size: 12, weight: 700 }, MUTE_RED, "MUTE", end);
+	if (ui.muted) s += text(VOLUME_X, ROW_Y, MUTE_FONT, MUTE_RED, "MUTE", end);
 	else if (ui.volumeDisplay === "number") s += text(VOLUME_X, ROW_Y, { size: 20, weight: 700 }, WHITE, String(Math.round(ui.volume)), end);
 	return s;
 }
 
-/** A double chevron centred on cx, pointing `dir`: two triangles 0.7·size wide, 0.9·size apart. */
+/**
+ * A double chevron about cx, pointing `dir`, on the predecessor's formula: triangle i's base is
+ * at cx + dir·(0.9·i − 0.45)·size and its tip 0.7·size further on.
+ */
 function chevronPair(cx: number, dir: -1 | 1, paint: string): string {
 	const { size } = CHEVRON;
 	const w = size * 0.7;
-	const step = size * 0.9;
-	const start = cx - (dir * (step + w)) / 2;
 	let d = "";
 	for (let i = 0; i < 2; i++) {
-		const x = start + dir * i * step;
+		const x = cx + dir * (0.9 * i - 0.45) * size;
 		d += `M${n(x)} ${n(ROW_Y - size / 2)}L${n(x + dir * w)} ${n(ROW_Y)}L${n(x)} ${n(ROW_Y + size / 2)}Z`;
 	}
 	return `<path d="${d}" ${paint}/>`;
@@ -211,10 +218,12 @@ function restView(p: PlayerState, ui: DialUi, accent: Rgb, t: number): Rest {
 	return { svg, bars, scrolls: top.scrolls || sub.scrolls };
 }
 
-/** The volume takeover (spec 4.2): scrim, labels, big number and a wide bar with a knob. */
+/** The volume takeover (spec 4.2): the plate, labels, big number and a wide bar with a knob. */
 function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
 	const T = TAKEOVER;
-	let s = fullRect(`fill="#000" opacity="${T.scrim}"`);
+	let s = ui.plate
+		? `<image href="${escapeXml(ui.plate)}" x="0" y="0" width="${STRIP_W}" height="${STRIP_H}" preserveAspectRatio="none"/>`
+		: fullRect(`fill="#000" opacity="${T.fallbackScrim}"`);
 	s += text(12, 15, { size: 11, weight: 600 }, white(0.6), "VOLUME");
 	if (p.title) s += marquee({ id: "takeover", x: 70, w: STRIP_W - 82 }, p.title, 15, { size: 11, weight: 400 }, white(0.5), ui.offset).svg;
 	const mid = ' text-anchor="middle"';
@@ -281,10 +290,12 @@ export function renderForeground(p: PlayerState | null, ui: DialUi, accent: Rgb,
 		// Flags describe content motion only; takeover timing is the controller's.
 		animating = rest.bars || rest.scrolls;
 		halfRate = rest.bars && !rest.scrolls;
+		// The takeover is drawn at alpha over the unfaded rest view, as the predecessor's canvas
+		// globalAlpha did (visual diff row 9); at full alpha the takeover replaces it.
 		const alpha = ui.mode === "volume" ? clamp(ui.takeoverAlpha, 0, 1) : 0;
 		if (alpha <= 0) body = rest.svg;
 		else if (alpha >= 1) body = takeover(p, ui, accent);
-		else body = `<g opacity="${opacity(1 - alpha)}">${rest.svg}</g><g opacity="${opacity(alpha)}">${takeover(p, ui, accent)}</g>`;
+		else body = `${rest.svg}<g opacity="${opacity(alpha)}">${takeover(p, ui, accent)}</g>`;
 	}
 	if (ui.dimmed) body += fullRect('fill="#000" opacity="0.5"');
 	if (ui.badge) body += badge(ui.badge);

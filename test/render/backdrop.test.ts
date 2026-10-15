@@ -1,6 +1,6 @@
 import { boxBlur, coverFit, saturate, type Rgba } from "../../src/art/image";
 import type { Rgb } from "../../src/art/accent";
-import { buildBackdrop } from "../../src/render/backdrop";
+import { buildBackdrop, buildTakeoverPlate } from "../../src/render/backdrop";
 import { decodeDataUri } from "../helpers/compose";
 import { make } from "../helpers/synth";
 
@@ -70,5 +70,54 @@ describe("buildBackdrop", () => {
 		expect(top[3]).toBe(255);
 		// Placeholder keeps the rounded corner too.
 		expect(px(img, 8, 8)[0]).toBeLessThan(accent[0] * 0.4);
+	});
+});
+
+// Ruling R20: the takeover's backdrop, as the predecessor painted it — the blurred, saturated
+// cover with no thumbnail under black 0.62 (x 0.38), or the plain accent gradient with no cover.
+describe("buildTakeoverPlate", () => {
+	/** Mean of the 2x2 block of `img` whose top-left is (x, y). */
+	const block = (img: Rgba, x: number, y: number) =>
+		[0, 1, 2].map((c) => (px(img, x, y)[c] + px(img, x + 1, y)[c] + px(img, x, y + 1)[c] + px(img, x + 1, y + 1)[c]) / 4);
+
+	test("returns a half-resolution PNG data URI, 100x50, fully opaque", () => {
+		for (const c of [cover, null]) {
+			const uri = buildTakeoverPlate(c, accent);
+			expect(uri.startsWith("data:image/png;base64,")).toBe(true);
+			const img = decodeDataUri(uri);
+			expect([img.width, img.height]).toEqual([100, 50]);
+			for (let i = 3; i < img.data.length; i += 4) expect(img.data[i]).toBe(255);
+		}
+	});
+
+	test("is the blurred, saturated cover at x 0.38, with no thumbnail", () => {
+		const img = decodeDataUri(buildTakeoverPlate(cover, accent));
+		const blurred = saturate(boxBlur(coverFit(cover, 240, 240), 10, 3), 1.25);
+		// Plate (x, y) covers strip (2x, 2y)..(2x+1, 2y+1), which is fitted (2x+20, 2y+70).
+		for (const [x, y] of [
+			[75, 25],
+			[18, 18], // over the thumbnail: blur, not the sharp cover
+			[5, 45]
+		]) {
+			const want = block(blurred, 2 * x + 20, 2 * y + 70).map((v) => v * 0.38);
+			const got = px(img, x, y);
+			for (let c = 0; c < 3; c++) expect(Math.abs(got[c] - want[c])).toBeLessThanOrEqual(2);
+		}
+	});
+
+	test("with no cover: the accent gradient from 0.30 to 0.10 with no placeholder and no scrim", () => {
+		const img = decodeDataUri(buildTakeoverPlate(null, accent));
+		for (const y of [2, 18, 47]) {
+			// Plate row y spans strip rows 2y and 2y+1, whose centres average to 2y + 1.
+			const k = 0.3 + (0.1 - 0.3) * ((2 * y + 1) / 100);
+			const got = px(img, 18, y);
+			for (let c = 0; c < 3; c++) expect(Math.abs(got[c] - accent[c] * k)).toBeLessThanOrEqual(1);
+		}
+	});
+
+	test("stays small enough to embed in takeover frames", () => {
+		// The plate rides in every takeover fg frame, URI-encoded inside the SVG.
+		const uri = buildTakeoverPlate(cover, accent);
+		expect(encodeURIComponent(uri).length).toBeLessThan(16_000);
 	});
 });

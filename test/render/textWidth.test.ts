@@ -45,13 +45,6 @@ describe("estimateWidth", () => {
 		expect(b).toBeCloseTo(a * 2, 6);
 	});
 
-	it("resolves weight 500 as the mean of 400 and 600", () => {
-		const text = "Spindle";
-		const mid = estimateWidth(text, { size: 17, weight: 500 });
-		const mean = (estimateWidth(text, { size: 17, weight: 400 }) + estimateWidth(text, { size: 17, weight: 600 })) / 2;
-		expect(mid).toBeCloseTo(mean, 6);
-	});
-
 	it("uses the fallback advance for code points outside the table", () => {
 		const w = estimateWidth("\u0410", { size: 17, weight: 400 }); // Cyrillic A: not in the table
 		expect(w).toBeGreaterThan(0);
