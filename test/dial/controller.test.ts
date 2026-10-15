@@ -553,6 +553,15 @@ describe("frames and priority", () => {
 		expect(c.frame(Date.now())?.bg).toBe(first?.bg);
 	});
 
+	it("coverKey reports the shown cover's key, null for the gradient", () => {
+		const { c } = setup();
+		expect(c.coverKey).toBeNull();
+		c.setCover(cover("/p?cache=c1", [200, 40, 40]));
+		expect(c.coverKey).toBe("/p?cache=c1");
+		c.setCover(null);
+		expect(c.coverKey).toBeNull();
+	});
+
 	// Ruling R20: one takeover plate per cover, built with the backdrop and cached with it.
 	it("builds the takeover plate once per cover and hands it to the renderer", () => {
 		const { c } = setup();

@@ -1,7 +1,7 @@
 // Connects one dial controller to one HA entity: connection status, entity updates and the
 // cover art for the current picture. No SDK and no timers of its own (the cover retry goes
 // through the injected `schedule`), so it is unit-testable.
-import type { CoverLoader } from "../art/cover";
+import { coverKey, type CoverLoader } from "../art/cover";
 import type { ConnStatus, HaConnection } from "../ha/connection";
 import { toPlayerState } from "../ha/playerState";
 import type { DialController } from "./controller";
@@ -14,7 +14,7 @@ export const COVER_RETRIES = 3;
 export type BindArgs = {
 	conn: Pick<HaConnection, "subscribeEntity" | "onStatus" | "status" | "callService">;
 	covers: Pick<CoverLoader, "load">;
-	ctl: Pick<DialController, "setConnStatus" | "setPlayer" | "setCover">;
+	ctl: Pick<DialController, "setConnStatus" | "setPlayer" | "setCover" | "coverKey">;
 	entityId: string;
 	now: () => number;
 	schedule: (fn: () => void, ms: number) => () => void;
@@ -24,8 +24,13 @@ export type BindArgs = {
 export function bindDial(args: BindArgs): () => void {
 	const { conn, covers, ctl, entityId, schedule } = args;
 	let active = true;
-	/** null until the first update, so the first one always sets the cover (a rebound controller may hold an old one). */
+	/**
+	 * The picture's `coverKey` (stable across HA's proxy-token rotation). null until the first
+	 * update, so the first one always sets the cover (a rebound controller may hold an old one).
+	 */
 	let picture: string | undefined | null = null;
+	/** The newest full picture URL: loads and retries fetch with its current token. */
+	let pictureUrl: string | undefined;
 	let retries = 0;
 	/** Bumped on every picture change and on unbind, so a superseded load drops its result. */
 	let gen = 0;
@@ -43,12 +48,14 @@ export function bindDial(args: BindArgs): () => void {
 			},
 			() => {
 				if (!active || myGen !== gen) return;
+				// Spec 7: the previous backdrop is kept. The controller already shows this very picture.
+				if (ctl.coverKey === picture) return;
 				ctl.setCover(null);
 				if (retries >= COVER_RETRIES) return;
 				retries++;
 				cancelRetry = schedule(() => {
 					cancelRetry = null;
-					if (active && myGen === gen) load(url, myGen);
+					if (active && myGen === gen && pictureUrl) load(pictureUrl, myGen);
 				}, COVER_RETRY_MS);
 			}
 		);
@@ -62,13 +69,14 @@ export function bindDial(args: BindArgs): () => void {
 		if (!active) return;
 		const player = raw ? toPlayerState(entityId, raw) : null;
 		ctl.setPlayer(player);
-		const next = player?.pictureUrl;
+		pictureUrl = player?.pictureUrl;
+		const next = pictureUrl === undefined ? undefined : coverKey(pictureUrl);
 		if (next === picture) return;
 		picture = next;
 		retries = 0;
 		gen++;
 		clearRetry();
-		if (next) load(next, gen);
+		if (pictureUrl) load(pictureUrl, gen);
 		else ctl.setCover(null);
 	});
 

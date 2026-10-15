@@ -4,6 +4,7 @@
 import { pickAccent, type Rgb } from "./accent";
 import { coverFit, decodeImage, type Rgba } from "./image";
 
+/** `key` is the picture's `coverKey`: stable across token rotation, and never holds a token. */
 export type CoverResult = { key: string; image: Rgba; accent: Rgb };
 
 const MASTER_SIZE = 240;
@@ -34,6 +35,21 @@ export function resolvePictureUrl(httpBase: string, pictureUrl: string): { url: 
 	return { url: pictureUrl, sendAuth: parsed.origin === baseOrigin };
 }
 
+/**
+ * The picture URL without its `token` query parameter; everything else (`cache=` included) is
+ * kept in order. HA rewrites a media player's proxy URL with a fresh `token=` every 5 minutes
+ * while `cache=` names the actual image, so this is the picture's identity.
+ */
+export function coverKey(pictureUrl: string): string {
+	const hashAt = pictureUrl.indexOf("#");
+	const head = hashAt < 0 ? pictureUrl : pictureUrl.slice(0, hashAt);
+	const hash = hashAt < 0 ? "" : pictureUrl.slice(hashAt);
+	const q = head.indexOf("?");
+	if (q < 0) return pictureUrl;
+	const params = head.slice(q + 1).split("&").filter((p) => p.split("=", 1)[0] !== "token");
+	return head.slice(0, q) + (params.length ? `?${params.join("&")}` : "") + hash;
+}
+
 type LoaderOptions = {
 	httpBase: string;
 	token: string;
@@ -60,38 +76,42 @@ export class CoverLoader {
 		this.maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
 	}
 
-	/** Resolves with a decoded cover. Only successes are cached; a failure is retried by the next call. */
+	/**
+	 * Resolves with a decoded cover. Cached and de-duplicated by `coverKey`, but fetched with the
+	 * full URL as given (its current token). Only successes are cached; a failure is retried by the next call.
+	 */
 	load(pictureUrl: string): Promise<CoverResult> {
-		const hit = this.cache.get(pictureUrl);
+		const key = coverKey(pictureUrl);
+		const hit = this.cache.get(key);
 		if (hit) {
-			this.cache.delete(pictureUrl);
-			this.cache.set(pictureUrl, hit);
+			this.cache.delete(key);
+			this.cache.set(key, hit);
 			return Promise.resolve(hit);
 		}
-		const pending = this.inFlight.get(pictureUrl);
+		const pending = this.inFlight.get(key);
 		if (pending) return pending;
 
-		const p = this.fetchCover(pictureUrl).then(
+		const p = this.fetchCover(pictureUrl, key).then(
 			(result) => {
-				this.inFlight.delete(pictureUrl);
-				this.cache.set(pictureUrl, result);
+				this.inFlight.delete(key);
+				this.cache.set(key, result);
 				while (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value as string);
 				return result;
 			},
 			(err: unknown) => {
-				this.inFlight.delete(pictureUrl);
+				this.inFlight.delete(key);
 				throw err;
 			}
 		);
-		this.inFlight.set(pictureUrl, p);
+		this.inFlight.set(key, p);
 		return p;
 	}
 
-	private async fetchCover(pictureUrl: string): Promise<CoverResult> {
+	private async fetchCover(pictureUrl: string, key: string): Promise<CoverResult> {
 		const { url, sendAuth } = resolvePictureUrl(this.httpBase, pictureUrl);
 		const bytes = await this.download(url, sendAuth);
 		const image = coverFit(decodeImage(bytes), MASTER_SIZE, MASTER_SIZE);
-		return { key: pictureUrl, image, accent: pickAccent(image) };
+		return { key, image, accent: pickAccent(image) };
 	}
 
 	/** One request, with the timeout and the size cap both covering the body read. */
@@ -109,7 +129,8 @@ export class CoverLoader {
 		try {
 			const headers: Record<string, string> = {};
 			if (sendAuth) headers.Authorization = `Bearer ${this.token}`;
-			const res = await this.fetchImpl(url, { headers, signal });
+			// A token-bearing request never follows a redirect, so the token cannot be carried anywhere else.
+			const res = await this.fetchImpl(url, { headers, signal, redirect: sendAuth ? "error" : "follow" });
 			if (!res.ok) {
 				dropBody(res);
 				throw tag(new Error(`HTTP ${res.status}`));

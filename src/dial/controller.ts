@@ -137,6 +137,11 @@ export class DialController {
 		this.dirty = true;
 	}
 
+	/** The shown cover's `coverKey`; null while the accent-gradient backdrop shows. */
+	get coverKey(): string | null {
+		return this.cover?.key ?? null;
+	}
+
 	/** null = no art, or it failed: the accent-gradient backdrop. */
 	setCover(c: CoverResult | null): void {
 		if ((c?.key ?? null) === (this.cover?.key ?? null)) return;

@@ -1,6 +1,6 @@
 import { createServer, type IncomingHttpHeaders, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
-import { CoverLoader, resolvePictureUrl } from "../../src/art/cover";
+import { CoverLoader, coverKey, resolvePictureUrl } from "../../src/art/cover";
 import { UnsupportedImageError } from "../../src/art/image";
 import { encodeJpeg, encodePng, solid } from "../helpers/synth";
 
@@ -110,6 +110,22 @@ describe("resolvePictureUrl", () => {
 	);
 });
 
+describe("coverKey", () => {
+	test("drops only the token query parameter, keeping cache= and the rest in order", () => {
+		expect(coverKey("/api/media_player_proxy/media_player.living_room?token=abc&cache=f00d")).toBe(
+			"/api/media_player_proxy/media_player.living_room?cache=f00d"
+		);
+		expect(coverKey("/p?cache=1&token=abc&x=2")).toBe("/p?cache=1&x=2");
+		expect(coverKey("http://homeassistant.local:8123/p?token=abc&cache=1#frag")).toBe("http://homeassistant.local:8123/p?cache=1#frag");
+	});
+
+	test("a token-only query leaves no dangling ?, and other URLs pass unchanged", () => {
+		expect(coverKey("/p?token=abc")).toBe("/p");
+		expect(coverKey("/p")).toBe("/p");
+		expect(coverKey("https://cdn.example.com/a.jpg?tokens=1&mytoken=2")).toBe("https://cdn.example.com/a.jpg?tokens=1&mytoken=2");
+	});
+});
+
 describe("CoverLoader", () => {
 	test("a relative proxy path is fetched with the bearer token and decoded", async () => {
 		home.handler = serveBytes(jpeg);
@@ -117,7 +133,8 @@ describe("CoverLoader", () => {
 		expect(home.seen).toHaveLength(1);
 		expect(home.seen[0].url).toBe("/api/media_player_proxy/media_player.living_room?token=x");
 		expect(home.seen[0].headers.authorization).toBe(`Bearer ${TOKEN}`);
-		expect(result.key).toBe("/api/media_player_proxy/media_player.living_room?token=x");
+		// The key is stable across HA's 5-minute proxy-token rotation, and never holds the token.
+		expect(result.key).toBe("/api/media_player_proxy/media_player.living_room");
 		expect([result.image.width, result.image.height]).toEqual([240, 240]);
 		expect(result.accent).toHaveLength(3);
 		const [r, , b] = result.accent;
@@ -144,15 +161,52 @@ describe("CoverLoader", () => {
 		expect(result.key).toBe(`${other.base}/art.jpg`);
 	});
 
-	test("a cross-origin redirect does not carry the token", async () => {
+	test("a token-bearing request never follows a redirect", async () => {
 		other.handler = serveBytes(jpeg);
 		home.handler = (_req, res) => {
 			res.writeHead(302, { location: `${other.base}/final.jpg` }).end();
 		};
-		await loader().load("/api/proxy/cover");
+		await expect(loader().load("/api/proxy/cover")).rejects.toThrow("cover fetch failed");
 		expect(home.seen[0].headers.authorization).toBe(`Bearer ${TOKEN}`);
-		expect(other.seen).toHaveLength(1);
-		expect(other.seen[0].headers.authorization).toBeUndefined();
+		expect(other.seen).toHaveLength(0);
+	});
+
+	test("a request without the token still follows a redirect", async () => {
+		home.handler = serveBytes(jpeg);
+		other.handler = (_req, res) => {
+			res.writeHead(302, { location: `${home.base}/final.jpg` }).end();
+		};
+		await loader().load(`${other.base}/art.jpg`);
+		expect(home.seen).toHaveLength(1);
+		expect(home.seen[0].url).toBe("/final.jpg");
+		expect(home.seen[0].headers.authorization).toBeUndefined();
+	});
+
+	test("a rotated proxy token is a cache hit, fetched (if at all) with the current URL", async () => {
+		home.handler = serveBytes(jpeg);
+		const c = loader();
+		const a = await c.load("/api/media_player_proxy/media_player.living_room?token=one&cache=c1");
+		const b = await c.load("/api/media_player_proxy/media_player.living_room?token=two&cache=c1");
+		expect(home.seen).toHaveLength(1);
+		expect(b).toBe(a);
+		expect(a.key).toBe("/api/media_player_proxy/media_player.living_room?cache=c1");
+		// A real picture change (new cache=) fetches, with that update's token.
+		const d = await c.load("/api/media_player_proxy/media_player.living_room?token=two&cache=c2");
+		expect(home.seen).toHaveLength(2);
+		expect(home.seen[1].url).toBe("/api/media_player_proxy/media_player.living_room?token=two&cache=c2");
+		expect(d.key).toBe("/api/media_player_proxy/media_player.living_room?cache=c2");
+	});
+
+	test("concurrent loads that differ only by token share one request", async () => {
+		home.handler = (req, res) => {
+			setTimeout(() => serveBytes(jpeg)(req, res), 30);
+		};
+		const c = loader();
+		const p1 = c.load("/p?token=one&cache=c1");
+		const p2 = c.load("/p?token=two&cache=c1");
+		expect(p2).toBe(p1);
+		await Promise.all([p1, p2]);
+		expect(home.seen).toHaveLength(1);
 	});
 
 	test("a second load of the same URL is served from the LRU", async () => {

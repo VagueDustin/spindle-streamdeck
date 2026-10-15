@@ -62,7 +62,18 @@ function fakeSchedule() {
 	return { timers, schedule, runAll, live: () => timers.filter((t) => !t.cancelled) };
 }
 
-const fakeCtl = () => ({ setConnStatus: vi.fn(), setPlayer: vi.fn(), setCover: vi.fn() });
+/** Tracks the cover key the way DialController does, so bindDial can see what is shown. */
+const fakeCtl = () => {
+	const ctl = {
+		coverKey: null as string | null,
+		setConnStatus: vi.fn(),
+		setPlayer: vi.fn(),
+		setCover: vi.fn((c: CoverResult | null) => {
+			ctl.coverKey = c?.key ?? null;
+		})
+	};
+	return ctl;
+};
 
 const raw = (pictureUrl?: string, over: Record<string, unknown> = {}): RawEntity => ({
 	state: "playing",
@@ -122,6 +133,50 @@ describe("bindDial", () => {
 		conn.emitEntity(raw("/pic/a", { volume_level: 0.3 }));
 		conn.emitEntity(raw("/pic/a", { media_title: "Other" }));
 		expect(covers.load).toHaveBeenCalledTimes(1);
+	});
+
+	it("a proxy-token rotation (same cache=) neither reloads nor touches the cover", async () => {
+		const { conn, covers, ctl } = setup(CONNECTED);
+		const proxy = (token: string, cache: string) => `/api/media_player_proxy/${ENTITY}?token=${token}&cache=${cache}`;
+		conn.emitEntity(raw(proxy("t1", "c1")));
+		covers.calls[0].resolve(coverFor(`/api/media_player_proxy/${ENTITY}?cache=c1`));
+		await flush();
+		expect(ctl.setCover).toHaveBeenCalledTimes(1);
+		conn.emitEntity(raw(proxy("t2", "c1")));
+		conn.emitEntity(raw(proxy("t3", "c1")));
+		await flush();
+		expect(covers.load).toHaveBeenCalledTimes(1);
+		expect(ctl.setCover).toHaveBeenCalledTimes(1);
+
+		// A real picture change (new cache=) reloads, with the current token.
+		conn.emitEntity(raw(proxy("t3", "c2")));
+		expect(covers.load).toHaveBeenCalledTimes(2);
+		expect(covers.load).toHaveBeenLastCalledWith(proxy("t3", "c2"));
+	});
+
+	it("a retry after a token rotation fetches with the newest token", async () => {
+		const { conn, covers, sched } = setup(CONNECTED);
+		conn.emitEntity(raw("/p?token=t1&cache=c1"));
+		covers.calls[0].reject(new Error("HTTP 500"));
+		await flush();
+		conn.emitEntity(raw("/p?token=t2&cache=c1"));
+		expect(covers.load).toHaveBeenCalledTimes(1);
+		expect(sched.live()).toHaveLength(1);
+		sched.runAll();
+		expect(covers.load).toHaveBeenCalledTimes(2);
+		expect(covers.load).toHaveBeenLastCalledWith("/p?token=t2&cache=c1");
+	});
+
+	it("a failed reload of the picture already shown keeps that cover (spec 7)", async () => {
+		const { conn, covers, ctl, sched } = setup(CONNECTED);
+		// A rebound controller still shows this picture's cover.
+		ctl.coverKey = "/p?cache=c1";
+		conn.emitEntity(raw("/p?token=t9&cache=c1"));
+		expect(covers.load).toHaveBeenCalledTimes(1);
+		covers.calls[0].reject(new Error("HTTP 500"));
+		await flush();
+		expect(ctl.setCover).not.toHaveBeenCalled();
+		expect(sched.live()).toHaveLength(0);
 	});
 
 	it("clears the cover without loading when the picture goes away", () => {
