@@ -13,10 +13,14 @@ export class UnsupportedImageError extends Error {
 	}
 }
 
-// Bounds for hostile or oversized covers: refuse rather than allocate.
-const MAX_MEGAPIXELS = 25;
-const MAX_PIXELS = MAX_MEGAPIXELS * 1_000_000;
+// Bounds for hostile or oversized covers: refuse rather than allocate or spin.
+const MAX_JPEG_MEGAPIXELS = 25;
 const MAX_JPEG_MEMORY_MB = 256;
+/** A real progressive JPEG has about 10 scans; jpeg-js walks every block once per scan, with no limit of its own. */
+const MAX_JPEG_SCANS = 100;
+/** A decoded PNG is held three times over (pngjs, the composite, the coverFit crop): 16 MP peaks near 200 MB. */
+const MAX_PNG_MEGAPIXELS = 16;
+const MAX_PNG_PIXELS = MAX_PNG_MEGAPIXELS * 1_000_000;
 
 const isJpeg = (b: Uint8Array) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const isPng = (b: Uint8Array) => b.length >= 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
@@ -30,10 +34,25 @@ export function decodeImage(bytes: Uint8Array): Rgba {
 	throw new UnsupportedImageError("Unsupported image format: only JPEG and PNG are handled");
 }
 
+/**
+ * Counts SOS markers (FF DA). Entropy-coded data stuffs every FF as FF 00, so outside other
+ * segments' payloads this is exact; a marker-shaped pair inside a payload only overcounts.
+ */
+function countScans(bytes: Uint8Array): number {
+	let n = 0;
+	for (let i = bytes.indexOf(0xff); i >= 0 && i < bytes.length - 1; i = bytes.indexOf(0xff, i + 1)) {
+		if (bytes[i + 1] === 0xda) n++;
+	}
+	return n;
+}
+
 function decodeJpegBytes(bytes: Uint8Array): Rgba {
+	// jpeg-js bounds memory but not time: thousands of tiny progressive scans would hold the
+	// plugin's only thread for minutes. Counting is linear and runs before any decoding.
+	if (countScans(bytes) > MAX_JPEG_SCANS) throw new UnsupportedImageError(`JPEG has more than ${MAX_JPEG_SCANS} scans`);
 	try {
 		const out = decodeJpeg(bytes, {
-			maxResolutionInMP: MAX_MEGAPIXELS,
+			maxResolutionInMP: MAX_JPEG_MEGAPIXELS,
 			maxMemoryUsageInMB: MAX_JPEG_MEMORY_MB,
 			formatAsRGBA: true,
 			useTArray: true
@@ -50,8 +69,11 @@ function decodePngBytes(bytes: Uint8Array): Rgba {
 	if (bytes.length >= 24) {
 		const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 		const pixels = dv.getUint32(16) * dv.getUint32(20);
-		if (pixels > MAX_PIXELS) throw new Error(`PNG decode failed: image exceeds ${MAX_MEGAPIXELS} megapixels`);
+		if (pixels > MAX_PNG_PIXELS) throw new Error(`PNG decode failed: image exceeds ${MAX_PNG_MEGAPIXELS} megapixels`);
 	}
+	// IHDR byte 28 is the interlace method. pngjs inflates Adam7 data with no output bound, so a
+	// small interlaced file can inflate to gigabytes: refuse it (the fallback is the accent gradient).
+	if (bytes.length >= 29 && bytes[28] === 1) throw new UnsupportedImageError("interlaced PNG");
 	try {
 		const png = PNG.sync.read(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		const data = new Uint8Array(png.width * png.height * 4);

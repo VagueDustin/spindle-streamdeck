@@ -1,6 +1,7 @@
 // test/fixtures/progressive.jpg was generated once with Pillow 12.3 (progressive JPEG, 64x64 gradient):
 //   python -c "from PIL import Image; im=Image.new('RGB',(64,64)); im.putdata([(x*4,y*4,128) for y in range(64) for x in range(64)]); im.save('test/fixtures/progressive.jpg', progressive=True, quality=85)"
 import { readFileSync } from "node:fs";
+import { crc32, deflateSync } from "node:zlib";
 import {
 	UnsupportedImageError,
 	boxBlur,
@@ -111,6 +112,71 @@ describe("decodeImage", () => {
 		dv.setUint32(16, 30000);
 		dv.setUint32(20, 30000);
 		expect(() => decodeImage(bytes)).toThrow(/PNG/);
+	});
+
+	test("the PNG pixel cap is 16 MP: a 20 MP header is refused before allocating", () => {
+		const bytes = encodePng(solid([1, 2, 3], 4));
+		const dv = new DataView(bytes.buffer, bytes.byteOffset);
+		dv.setUint32(16, 5000);
+		dv.setUint32(20, 4000);
+		expect(() => decodeImage(bytes)).toThrow(/exceeds 16 megapixels/);
+		// Exactly 16 MP passes the cap (it then fails on the 4x4 body, not on the size).
+		dv.setUint32(16, 4000);
+		dv.setUint32(20, 4000);
+		expect(() => decodeImage(bytes)).toThrow(/PNG/);
+		expect(() => decodeImage(bytes)).not.toThrow(/megapixels/);
+	});
+
+	test("an interlaced PNG is refused before inflating (decompression bomb)", () => {
+		// A 1x1 interlaced PNG whose IDAT inflates to 50 MB: pngjs inflates interlaced data unbounded.
+		const chunk = (type: string, data: Uint8Array) => {
+			const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+			const out = Buffer.alloc(12 + data.length);
+			out.writeUInt32BE(data.length, 0);
+			body.copy(out, 4);
+			out.writeUInt32BE(crc32(body), 8 + data.length);
+			return out;
+		};
+		const ihdr = Buffer.alloc(13);
+		ihdr.writeUInt32BE(1, 0);
+		ihdr.writeUInt32BE(1, 4);
+		ihdr[8] = 8; // bit depth
+		ihdr[9] = 2; // RGB
+		ihdr[12] = 1; // Adam7
+		const bomb = Uint8Array.from(
+			Buffer.concat([
+				Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+				chunk("IHDR", ihdr),
+				chunk("IDAT", deflateSync(Buffer.alloc(50_000_000))),
+				chunk("IEND", new Uint8Array())
+			])
+		);
+		expect(bomb[28]).toBe(1);
+		const t0 = performance.now();
+		expect(() => decodeImage(bomb)).toThrow(UnsupportedImageError);
+		expect(() => decodeImage(bomb)).toThrow(/interlaced PNG/);
+		expect(performance.now() - t0).toBeLessThan(50);
+	});
+
+	test("a JPEG with more than 100 SOS markers is refused before decoding (scan bomb)", () => {
+		const base = encodeJpeg(gradient(16, 16));
+		const eoi = base.length - 2;
+		// Minimal one-component scan header; the count runs before jpeg-js ever sees it.
+		const sos = [0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00];
+		const withScans = (extra: number) =>
+			Uint8Array.from([...base.subarray(0, eoi), ...Array.from({ length: extra }, () => sos).flat(), 0xff, 0xd9]);
+		const many = withScans(100); // 101 SOS markers in all
+		const t0 = performance.now();
+		expect(() => decodeImage(many)).toThrow(UnsupportedImageError);
+		expect(performance.now() - t0).toBeLessThan(50);
+		// At the cap (100 in all) the count passes; whatever jpeg-js then makes of it is not a scan-count refusal.
+		let atCap: unknown;
+		try {
+			decodeImage(withScans(99));
+		} catch (e) {
+			atCap = e;
+		}
+		expect(atCap).not.toBeInstanceOf(UnsupportedImageError);
 	});
 
 	test("WebP bytes throw UnsupportedImageError", () => {
