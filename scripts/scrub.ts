@@ -31,7 +31,7 @@ const PRIVATE_IPV4 = new RegExp(
 	"g"
 );
 // A realistic JWT: base64url header starting eyJ plus a payload segment, each long enough to be real.
-const JWT = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]+)?/;
+const JWT = /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]+)?/;
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const PNG_METADATA_CHUNKS = new Set(["tEXt", "iTXt", "zTXt", "eXIf"]);
@@ -41,6 +41,8 @@ const VENDORED = new Set(["com.vaguedustin.spindle.sdPlugin/ui/sdpi-components.j
 const LOCAL_FILE = ".scrub-local.txt";
 const NOREPLY = /@users\.noreply\.github\.com$/i;
 const ANTHROPIC = "noreply@anthropic.com";
+/** GitHub's web-flow committer for merges and squashes made in the web UI; accepted for committers only. */
+const GITHUB_WEB = "noreply@github.com";
 const HISTORY = "(git history)";
 const RECORD_SEP = "\x1e";
 const UNIT_SEP = "\x1f";
@@ -118,14 +120,30 @@ export function scanPng(bytes: Uint8Array): string[] {
 	return found;
 }
 
-function emailsIn(trailers: string): string[] {
-	return trailers.split(new RegExp(`${UNIT_SEP}|\\n`)).flatMap((value) => /<([^>]+)>/.exec(value)?.[1] ?? []);
+/** True when every Co-Authored-By value carries a parseable, allowed email (case-insensitive). */
+function trailersAllowed(trailers: string): boolean {
+	return trailers
+		.split(new RegExp(`${UNIT_SEP}|\\n`))
+		.filter((value) => value.trim() !== "")
+		.every((value) => {
+			const email = /<([^>]+)>/.exec(value)?.[1]?.trim().toLowerCase();
+			return email !== undefined && (email === ANTHROPIC || NOREPLY.test(email));
+		});
+}
+
+/** Problems with the local denylist file itself; a silently useless denylist is worse than none. */
+export function denylistWarnings(raw: string, entries: string[]): string[] {
+	const warnings: string[] = [];
+	if (raw.includes("\0")) warnings.push("local denylist contains NUL characters (UTF-16 file?); save it as UTF-8");
+	if (entries.length === 0) warnings.push("local denylist has no entries");
+	return warnings;
 }
 
 /**
  * Checks the output of `git log --all` formatted as record-separator, short sha, author email,
  * committer email and Co-Authored-By trailer values (tab and unit-separator delimited).
- * Author and committer must be GitHub noreply addresses; co-authors may also be Anthropic's.
+ * Authors must be GitHub noreply addresses; committers may also be GitHub's web-flow address;
+ * co-authors may also be Anthropic's. A Co-Authored-By value without a parseable email is a hit.
  */
 export function checkCommitEmails(log: string): Hit[] {
 	const hits: Hit[] = [];
@@ -133,8 +151,9 @@ export function checkCommitEmails(log: string): Hit[] {
 		const [sha, author = "", committer = "", trailers = ""] = record.split("\t");
 		const flag = (what: string) => hits.push({ file: HISTORY, line: 0, pattern: `commit ${sha}: ${what}` });
 		if (!NOREPLY.test(author.trim())) flag("author email");
-		if (!NOREPLY.test(committer.trim())) flag("committer email");
-		if (emailsIn(trailers).some((email) => email !== ANTHROPIC && !NOREPLY.test(email))) flag("Co-Authored-By email");
+		const committerEmail = committer.trim();
+		if (!NOREPLY.test(committerEmail) && committerEmail.toLowerCase() !== GITHUB_WEB) flag("committer email");
+		if (!trailersAllowed(trailers)) flag("Co-Authored-By email");
 	}
 	return hits;
 }
@@ -151,7 +170,9 @@ function main(): number {
 	const root = path.resolve(import.meta.dirname, "..");
 	const localPath = path.join(root, LOCAL_FILE);
 	const hasLocal = fs.existsSync(localPath);
-	const extra = hasLocal ? parseDenylist(fs.readFileSync(localPath, "utf8")) : [];
+	const rawLocal = hasLocal ? fs.readFileSync(localPath, "utf8") : "";
+	const extra = parseDenylist(rawLocal);
+	if (hasLocal) for (const warning of denylistWarnings(rawLocal, extra)) console.warn(`scrub: ${warning}`);
 	if (!hasLocal && !process.env.CI) console.warn("scrub: local denylist missing (create .scrub-local.txt, see spec §11)");
 
 	const hits: Hit[] = [];

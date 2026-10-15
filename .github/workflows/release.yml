@@ -28,6 +28,19 @@ jobs:
       - run: npm run scrub
       - run: npx @elgato/cli@1.10 validate com.vaguedustin.spindle.sdPlugin --no-update-check
       - run: npx @elgato/cli@1.10 pack com.vaguedustin.spindle.sdPlugin --output out --force
+      - name: Name the asset Spindle.streamDeckPlugin
+        run: |
+          shopt -s nullglob
+          packed=(out/*.streamDeckPlugin)
+          if [ "${#packed[@]}" -ne 1 ]; then
+            echo "expected exactly one packed plugin in out/, found ${#packed[@]}" >&2
+            ls -la out >&2
+            exit 1
+          fi
+          if [ "${packed[0]}" != "out/Spindle.streamDeckPlugin" ]; then
+            mv "${packed[0]}" out/Spindle.streamDeckPlugin
+          fi
+          ls -la out
       - name: Extract release notes from CHANGELOG.md
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -39,11 +52,12 @@ jobs:
                 if (found) exit
                 h = $0
                 sub(/^## +\[?v?/, "", h)
-                if (index(h, v) == 1 && substr(h, length(v) + 1, 1) ~ /^([] ]|$)/) found = 1
+                c = substr(h, length(v) + 1, 1)
+                if (index(h, v) == 1 && (c == "" || c == "]" || c == " ")) found = 1
                 next
               }
               found
-            ' CHANGELOG.md > "$notes"
+            ' <(tr -d '\r' < CHANGELOG.md) > "$notes"
           fi
           if ! grep -q '[^[:space:]]' "$notes" 2>/dev/null; then
             echo "See CHANGELOG.md" > "$notes"
@@ -51,5 +65,5 @@ jobs:
           cat "$notes"
       - uses: softprops/action-gh-release@v2
         with:
-          files: out/*.streamDeckPlugin
+          files: out/Spindle.streamDeckPlugin
           body_path: ${{ runner.temp }}/release-notes.md

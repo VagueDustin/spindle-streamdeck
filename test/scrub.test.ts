@@ -1,5 +1,5 @@
 import { PNG } from "pngjs";
-import { checkCommitEmails, parseDenylist, scanPng, scanText } from "../scripts/scrub";
+import { checkCommitEmails, denylistWarnings, parseDenylist, scanPng, scanText } from "../scripts/scrub";
 
 // Sensitive-looking inputs are assembled at runtime (ruling R5) so this file scans clean.
 const ip = (...parts: Array<string | number>) => parts.join(".");
@@ -31,6 +31,12 @@ describe("scanText generic tier", () => {
 	it("flags a realistic JWT but not a bare eyJ prefix", () => {
 		expect(scanText(`Bearer ${jwt}`, "a.ts", [])).toEqual([{ file: "a.ts", line: 1, pattern: "jwt" }]);
 		expect(scanText("auth eyJabc failed", "a.ts", [])).toEqual([]);
+	});
+
+	it("flags a JWT glued to other word characters or URL-encoding", () => {
+		const headerOnly = "eyJ" + "hbGciOiJIUzI1NiJ9" + ".c2lnbmF0dXJlMTIzNDU2";
+		expect(scanText("token%3D" + headerOnly, "a.ts", []).map((h) => h.pattern)).toEqual(["jwt"]);
+		expect(scanText("x_" + headerOnly, "a.ts", []).map((h) => h.pattern)).toEqual(["jwt"]);
 	});
 
 	it("flags a two-segment JWT-shaped string", () => {
@@ -77,6 +83,18 @@ describe("scanText local tier", () => {
 		expect(hits).toHaveLength(1);
 		const solo = scanText("ask Dustin", "a.ts", ["Dustin"]);
 		expect(solo).toHaveLength(1);
+	});
+});
+
+describe("denylistWarnings", () => {
+	it("is quiet for a normal file", () => {
+		expect(denylistWarnings("one\n", ["one"])).toEqual([]);
+	});
+
+	it("warns about a UTF-16 file and about an empty one", () => {
+		const utf16 = "o\0n\0e\0";
+		expect(denylistWarnings(utf16, parseDenylist(utf16))).toEqual([expect.stringContaining("NUL")]);
+		expect(denylistWarnings("# only a comment\n", [])).toEqual([expect.stringContaining("no entries")]);
 	});
 });
 
@@ -141,6 +159,21 @@ describe("checkCommitEmails", () => {
 		const hits = checkCommitEmails(log);
 		expect(hits.map((h) => h.pattern)).toEqual(["commit aaaaaaa: author email", "commit bbbbbbb: committer email", "commit ccccccc: Co-Authored-By email"]);
 		expect(JSON.stringify(hits)).not.toContain(real);
+	});
+
+	it("accepts GitHub's web-flow committer but not as an author", () => {
+		const web = "noreply@" + "github.com";
+		expect(checkCommitEmails(record("aaaaaaa", noreply, web))).toEqual([]);
+		expect(checkCommitEmails(record("bbbbbbb", web, noreply)).map((h) => h.pattern)).toEqual(["commit bbbbbbb: author email"]);
+	});
+
+	it("flags a Co-Authored-By value with no parseable email and compares case-insensitively", () => {
+		const none = checkCommitEmails(record("aaaaaaa", noreply, noreply, "Claude without an address\n"));
+		expect(none.map((h) => h.pattern)).toEqual(["commit aaaaaaa: Co-Authored-By email"]);
+		const mixed = record("bbbbbbb", noreply, noreply, "Claude <NoReply@Anthropic.com>\x1fPal <1+pal@Users.NoReply.GitHub.com>\n");
+		expect(checkCommitEmails(mixed)).toEqual([]);
+		const oneBad = record("ccccccc", noreply, noreply, "Claude <noreply@anthropic.com>\x1fNo address\n");
+		expect(checkCommitEmails(oneBad)).toHaveLength(1);
 	});
 
 	it("handles an empty history", () => {
