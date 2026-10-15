@@ -4,6 +4,7 @@ import { SpindleDial } from "./actions/spindle-dial";
 import { setConnectionLogger } from "./ha/connection";
 import { redact } from "./log";
 import type { GlobalSettings } from "./settings";
+import { trustSystemCertificates } from "./tlsTrust";
 
 /**
  * sdpi-components saves the URL and token fields on every keystroke. Waiting for typing to pause
@@ -17,6 +18,12 @@ const GLOBAL_SETTINGS_SETTLE_MS = 800;
 // with Stream Deck, including didReceiveGlobalSettings, which carries the HA token.
 setConnectionLogger(streamDeck.logger.createScope("ha"));
 streamDeck.logger.info(`Spindle ${__SPINDLE_VERSION__} starting`);
+
+// Before any HA connection or cover fetch: trust the certificates the OS trusts, so an HA behind
+// a private CA works over https without NODE_USE_SYSTEM_CA (which Stream Deck does not set).
+// No token has been read yet, so the warning has nothing to redact.
+const trust = trustSystemCertificates(undefined, (msg) => streamDeck.logger.warn(msg));
+streamDeck.logger.info(`OS certificate store: ${trust}`);
 
 const dial = new SpindleDial();
 streamDeck.actions.registerAction(dial);

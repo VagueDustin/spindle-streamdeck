@@ -122,7 +122,7 @@ export function statusLine(status: ConnStatus | null, host: string, players: num
 		case "auth_invalid":
 			return "Token rejected";
 		case "unreachable":
-			return `Can't reach ${host}`;
+			return status.detail.startsWith("certificate not trusted") ? `Can't reach ${host}: certificate not trusted` : `Can't reach ${host}`;
 		default:
 			return "Connecting…";
 	}

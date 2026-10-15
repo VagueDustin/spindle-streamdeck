@@ -121,6 +121,7 @@ Matching ignores upper and lower case. Spindle checks the player's `source` firs
 | **Connected · HA *version* · *n* media players** | Everything works. *n* is how many media players the token's user can see. |
 | **Token rejected** | Home Assistant refused the token. See **Check token** above, and the IP-ban warning below. |
 | **Can't reach *host*** | Spindle couldn't open a connection. Check the URL and port, that Home Assistant is running, and that this computer can reach it (try the URL in a browser). |
+| **Can't reach *host*: certificate not trusted** | The `https` certificate isn't one this computer trusts. See [HTTPS with a private or self-signed certificate](#https-with-a-private-or-self-signed-certificate). |
 
 ### Home Assistant behind a reverse proxy
 
@@ -128,7 +129,18 @@ Spindle talks to Home Assistant over a WebSocket at `/api/websocket`. A reverse 
 
 ### `https` and `wss`
 
-Enter the same URL you use in a browser. Spindle works out the WebSocket address from it: `http://` becomes `ws://` and `https://` becomes `wss://`, and the path is always `/api/websocket`. Extra paths such as `/lovelace/0`, trailing slashes and stray spaces are ignored. With `https`, the certificate must be one this computer trusts. A self-signed certificate is likely to fail with **Can't reach**; use the plain `http://` local address instead, or a trusted certificate.
+Enter the same URL you use in a browser. Spindle works out the WebSocket address from it: `http://` becomes `ws://` and `https://` becomes `wss://`, and the path is always `/api/websocket`. Extra paths such as `/lovelace/0`, trailing slashes and stray spaces are ignored. With `https`, the certificate must be one this computer trusts; see the next section.
+
+### HTTPS with a private or self-signed certificate
+
+Spindle trusts the certificates your operating system trusts, the same ones your browser uses. A certificate from a public authority such as Let's Encrypt, or from Home Assistant Cloud (Nabu Casa), just works.
+
+If your Home Assistant uses a certificate from your own or your organisation's certificate authority (CA), add that CA to the operating system's store, then quit and restart the Stream Deck app (Spindle reads the store when it starts):
+
+- **Windows:** import the CA certificate into **Trusted Root Certification Authorities** (double-click the certificate, **Install Certificate…**, and pick that store).
+- **macOS:** add the CA certificate to the **System** keychain in Keychain Access, open it, and set **Trust → When using this certificate** to **Always Trust**.
+
+A self-signed certificate (one that is its own CA) that the operating system doesn't trust fails. So does a certificate whose name doesn't match the host in the URL. In both cases the dial's settings show **Can't reach *host*: certificate not trusted**, and the strip shows **Reconnecting…**. Trust the certificate as above, or use the plain `http://` local address instead.
 
 ### Cover art doesn't show
 

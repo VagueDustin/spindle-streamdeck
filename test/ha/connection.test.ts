@@ -414,3 +414,136 @@ test("getConnection shares by (url, token) and replaces on a token change", asyn
 	expect(c).not.toBe(b);
 	stopConnection(fake.url);
 });
+
+describe("diagnosing a wss handshake that fails before open", () => {
+	const WSS = "wss://ha.example.com/api/websocket";
+	const certError = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: Object.assign(new Error("tls"), { code }) });
+
+	/** A socket that never opens: an `error` (no detail, like undici's) and then a 1006 close, on the next turn. */
+	class FailingSocket extends EventTarget {
+		static opens = false;
+		constructor(readonly url: string) {
+			super();
+			constructed++;
+			setImmediate(() => {
+				if (FailingSocket.opens) {
+					this.dispatchEvent(new Event("open"));
+				} else {
+					this.dispatchEvent(new Event("error"));
+				}
+				this.dispatchEvent(Object.assign(new Event("close"), { code: 1006, reason: "" }));
+			});
+		}
+		send(): void {}
+		close(): void {}
+	}
+
+	function probing(fetchImpl: typeof fetch, extra: Partial<HaConnectionOptions> = {}) {
+		const lines: string[] = [];
+		const logger: ScopedLogger = { debug() {}, info() {}, warn: (m) => lines.push(m), error: (m) => lines.push(m) };
+		const statuses: ConnStatus[] = [];
+		const conn = new HaConnection({
+			wsUrl: WSS,
+			token: TOKEN,
+			WebSocketImpl: FailingSocket as unknown as typeof WebSocket,
+			fetchImpl,
+			logger,
+			backoffMinMs: 100,
+			backoffMaxMs: 100,
+			...extra
+		});
+		conns.push(conn);
+		conn.onStatus((s) => statuses.push(s));
+		conn.start();
+		return { conn, lines, statuses };
+	}
+
+	beforeEach(() => {
+		FailingSocket.opens = false;
+		vi.spyOn(Math, "random").mockReturnValue(0.5); // no jitter
+	});
+
+	test("a certificate error from the probe becomes the unreachable detail, logged and without the token", async () => {
+		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE")));
+		const { conn, lines } = probing(fetchImpl);
+		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+
+		expect(conn.status).toEqual({ kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)" });
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+		const [url, init] = fetchImpl.mock.calls[0];
+		expect(url).toBe("https://ha.example.com/api/");
+		expect(init?.method).toBe("HEAD");
+		expect(init?.signal).toBeInstanceOf(AbortSignal);
+		expect(JSON.stringify(init?.headers ?? {})).not.toContain(TOKEN);
+		expect(JSON.stringify(init ?? {})).not.toMatch(/authorization/i);
+		expect(lines.some((l) => l.includes("certificate is not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)"))).toBe(true);
+		expect(lines.join("\n")).not.toContain(TOKEN);
+	});
+
+	test("one probe per failure streak, and later failures keep the certificate detail", async () => {
+		useFakeClock();
+		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("SELF_SIGNED_CERT_IN_CHAIN")));
+		const { conn, statuses } = probing(fetchImpl);
+		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+		for (let i = 0; i < 4; i++) {
+			await vi.advanceTimersByTimeAsync(100);
+			await until(() => conn.status.kind === "unreachable");
+		}
+		expect(constructed).toBe(5);
+		expect(fetchImpl).toHaveBeenCalledTimes(1);
+		// After the diagnosis, every reconnect attempt goes connecting → the same certificate detail.
+		const unreachable = statuses.filter((s) => s.kind === "unreachable").map((s) => (s as { detail: string }).detail);
+		expect(unreachable).toEqual(["error", ...Array(5).fill("certificate not trusted (SELF_SIGNED_CERT_IN_CHAIN)")]);
+	});
+
+	test("a probe that reaches HA, or fails for another reason, leaves the detail and is not repeated in the streak", async () => {
+		useFakeClock();
+		for (const outcome of [() => Promise.resolve(new Response(null, { status: 401 })), () => Promise.reject(certError("ECONNREFUSED"))]) {
+			constructed = 0;
+			const fetchImpl = vi.fn<typeof fetch>(outcome);
+			const { conn } = probing(fetchImpl);
+			await until(() => conn.status.kind === "unreachable");
+			await until(() => fetchImpl.mock.calls.length === 1);
+			await new Promise((resolve) => setImmediate(resolve));
+			expect(conn.status).toEqual({ kind: "unreachable", detail: "error" });
+			await vi.advanceTimersByTimeAsync(100);
+			await until(() => constructed === 2 && conn.status.kind === "unreachable");
+			expect(fetchImpl).toHaveBeenCalledTimes(1);
+			conn.stop();
+		}
+	});
+
+	test("stop() and start() begin a new streak, which probes again", async () => {
+		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("CERT_HAS_EXPIRED")));
+		const { conn } = probing(fetchImpl);
+		await until(() => conn.status.kind === "unreachable" && conn.status.detail.startsWith("certificate"));
+		conn.stop();
+		conn.start();
+		await until(() => fetchImpl.mock.calls.length === 2);
+	});
+
+	test("a probe result that lands after stop() is dropped", async () => {
+		let settle!: (err: unknown) => void;
+		const fetchImpl = vi.fn<typeof fetch>(() => new Promise((_, reject) => (settle = reject)));
+		const { conn } = probing(fetchImpl);
+		await until(() => fetchImpl.mock.calls.length === 1);
+		conn.stop();
+		settle(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE"));
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(conn.status).toEqual({ kind: "stopped" });
+	});
+
+	test("never probes for ws://, or for a wss socket that opened and then dropped", async () => {
+		const fetchImpl = vi.fn<typeof fetch>(() => Promise.reject(certError("UNABLE_TO_VERIFY_LEAF_SIGNATURE")));
+		const plain = probing(fetchImpl, { wsUrl: "ws://ha.example.com/api/websocket" });
+		await until(() => plain.conn.status.kind === "unreachable");
+		plain.conn.stop();
+
+		FailingSocket.opens = true;
+		const opened = probing(fetchImpl);
+		await until(() => opened.conn.status.kind === "unreachable");
+		opened.conn.stop();
+		await new Promise((resolve) => setImmediate(resolve));
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+});

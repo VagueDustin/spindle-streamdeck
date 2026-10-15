@@ -35,6 +35,8 @@ Result key for every item: `PASS`, `FAIL`, or `N/A` (with the reason in Notes).
   Result: ____ Notes: ____
 - [ ] **1.7 Shared settings.** A second dial shows the same URL and token without entering them again, and has its own player, step, labels and tracks setting.
   Result: ____ Notes: ____
+- [ ] **1.8 HTTPS with an internal CA (OS-trusted) connects.** With Home Assistant served over `https` with a certificate from a private CA that the operating system trusts (but Node's bundled list does not), and the Stream Deck app started normally (no `NODE_USE_SYSTEM_CA`), pasting the `https://` URL reaches "Connected · HA *version* · *n* media players". With that CA removed from the OS store and the Stream Deck app restarted, the status reads "Can't reach *host*: certificate not trusted" and the plugin log names the certificate error code. Re-add the CA afterwards. N/A if no such server is available.
+  Result: ____ Notes: ____
 
 ## 2. Dial controls (spec section 6)
 

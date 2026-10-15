@@ -21,7 +21,10 @@ const sd = vi.hoisted(() => {
 	return state;
 });
 
+const trust = vi.hoisted(() => vi.fn(() => "trusted"));
+
 vi.mock("@elgato/streamdeck", () => ({ default: sd.streamDeck }));
+vi.mock("../src/tlsTrust", () => ({ trustSystemCertificates: trust }));
 vi.mock("../src/actions/spindle-dial", () => ({
 	SpindleDial: class {
 		setGlobalSettings = sd.setGlobalSettings;
@@ -66,4 +69,13 @@ test("the startup error log is redacted", async () => {
 	expect(logged()).toHaveLength(1);
 	expect(logged()[0]).toContain("‹redacted›");
 	expect(logged()[0]).not.toContain(TOKEN);
+});
+
+test("trusts the OS certificate store before any action or connection exists", async () => {
+	sd.streamDeck.settings.getGlobalSettings.mockReturnValue(new Promise(() => {}));
+	await import("../src/plugin");
+	expect(trust).toHaveBeenCalledTimes(1);
+	const trustedAt = trust.mock.invocationCallOrder[0];
+	expect(trustedAt).toBeLessThan(sd.streamDeck.actions.registerAction.mock.invocationCallOrder[0]);
+	expect(trustedAt).toBeLessThan(sd.streamDeck.connect.mock.invocationCallOrder[0]);
 });

@@ -344,4 +344,10 @@ describe("statusLine", () => {
 		expect(statusLine({ kind: "connecting" }, HOST, undefined)).toBe("Connecting…");
 		expect(statusLine({ kind: "stopped" }, HOST, undefined)).toBe("Connecting…");
 	});
+
+	it("names an untrusted certificate after the Can't reach prefix", () => {
+		const status: ConnStatus = { kind: "unreachable", detail: "certificate not trusted (UNABLE_TO_VERIFY_LEAF_SIGNATURE)" };
+		expect(statusLine(status, "ha.example.com", undefined)).toBe("Can't reach ha.example.com: certificate not trusted");
+		expect(statusLine({ kind: "unreachable", detail: "closed (1006)" }, "ha.example.com", undefined)).toBe("Can't reach ha.example.com");
+	});
 });
