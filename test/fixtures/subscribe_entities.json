@@ -1,0 +1,83 @@
+[
+	{
+		"a": {
+			"media_player.living_room": {
+				"s": "playing",
+				"a": {
+					"friendly_name": "Living Room",
+					"media_title": "Blue in Green",
+					"media_artist": "Example Quartet",
+					"media_album_name": "Kind of Fictional",
+					"volume_level": 0.42,
+					"is_volume_muted": false,
+					"supported_features": 152463,
+					"source": "Optical",
+					"app_name": "Example Player",
+					"entity_picture": "/api/media_player_proxy/media_player.living_room?token=0123abcd4567ef890123abcd4567ef890123abcd4567ef890123abcd4567ef89&cache=1a2b3c"
+				},
+				"c": "01EXAMPLE0000000000000001",
+				"lc": 1760400000.123
+			}
+		}
+	},
+	{
+		"c": {
+			"media_player.living_room": {
+				"+": {
+					"s": "paused",
+					"lu": 1760400060.5,
+					"c": "01EXAMPLE0000000000000002"
+				}
+			}
+		}
+	},
+	{
+		"c": {
+			"media_player.living_room": {
+				"+": {
+					"s": "playing",
+					"a": {
+						"media_title": "So What",
+						"media_album_name": "Kind of Fictional (Deluxe)",
+						"entity_picture": "/api/media_player_proxy/media_player.living_room?token=89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567&cache=4d5e6f"
+					},
+					"lc": 1760400120.25,
+					"lu": 1760400120.25,
+					"c": "01EXAMPLE0000000000000003"
+				}
+			}
+		}
+	},
+	{
+		"c": {
+			"media_player.living_room": {
+				"+": {
+					"a": {
+						"volume_level": 0.55
+					},
+					"lu": 1760400180.75
+				}
+			},
+			"media_player.bedroom": {
+				"+": {
+					"s": "off"
+				}
+			}
+		}
+	},
+	{
+		"c": {
+			"media_player.living_room": {
+				"-": {
+					"a": ["media_artist"]
+				},
+				"+": {
+					"lu": 1760400240.5
+				}
+			}
+		}
+	},
+	{
+		"r": ["media_player.living_room"]
+	}
+]
