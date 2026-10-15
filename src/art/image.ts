@@ -21,6 +21,9 @@ const MAX_JPEG_SCANS = 100;
 /** A decoded PNG is held three times over (pngjs, the composite, the coverFit crop): 16 MP peaks near 200 MB. */
 const MAX_PNG_MEGAPIXELS = 16;
 const MAX_PNG_PIXELS = MAX_PNG_MEGAPIXELS * 1_000_000;
+/** A real PNG has a handful of chunks; the cap keeps the chunk walk itself cheap on hostile files. */
+const MAX_PNG_CHUNKS = 10_000;
+const PNG_SIGNATURE_LENGTH = 8;
 
 const isJpeg = (b: Uint8Array) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const isPng = (b: Uint8Array) => b.length >= 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
@@ -63,17 +66,41 @@ function decodeJpegBytes(bytes: Uint8Array): Rgba {
 	}
 }
 
-function decodePngBytes(bytes: Uint8Array): Rgba {
-	// pngjs allocates width*height*4 as soon as it has read the header, so check
-	// IHDR (width at byte 16, height at byte 20) before handing it the data.
-	if (bytes.length >= 24) {
-		const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		const pixels = dv.getUint32(16) * dv.getUint32(20);
-		if (pixels > MAX_PNG_PIXELS) throw new Error(`PNG decode failed: image exceeds ${MAX_PNG_MEGAPIXELS} megapixels`);
+/**
+ * Walks the PNG chunk list (length, type, data, CRC) and checks the one IHDR before pngjs sees any
+ * of it. pngjs re-parses every IHDR it meets and keeps the last, so a benign first header must not
+ * be allowed to hide a later interlaced or oversized one: exactly one IHDR, and it comes first.
+ * Every step is bounds-checked, and the walk is capped, so it stays linear and cheap.
+ */
+function checkPngChunks(bytes: Uint8Array): void {
+	const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let pos = PNG_SIGNATURE_LENGTH;
+	for (let count = 1; ; count++) {
+		if (count > MAX_PNG_CHUNKS) throw new UnsupportedImageError(`PNG has too many chunks (more than ${MAX_PNG_CHUNKS})`);
+		if (pos + 8 > bytes.length) throw new UnsupportedImageError("PNG is truncated before IEND");
+		const length = dv.getUint32(pos);
+		const type = String.fromCharCode(bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]);
+		const next = pos + 12 + length; // length + type + data + CRC
+		if (next > bytes.length) throw new UnsupportedImageError("PNG is truncated inside a chunk");
+		if (count === 1) {
+			if (type !== "IHDR" || length !== 13) throw new UnsupportedImageError("PNG first chunk is not a valid IHDR");
+			// pngjs allocates width*height*4 as soon as it has read the header: check the size first.
+			if (dv.getUint32(pos + 8) * dv.getUint32(pos + 12) > MAX_PNG_PIXELS) {
+				throw new Error(`PNG decode failed: image exceeds ${MAX_PNG_MEGAPIXELS} megapixels`);
+			}
+			// The interlace method is IHDR's last byte. pngjs inflates Adam7 data with no output bound, so a
+			// small interlaced file can inflate to gigabytes: refuse it (the fallback is the accent gradient).
+			if (bytes[pos + 8 + 12] === 1) throw new UnsupportedImageError("interlaced PNG");
+		} else if (type === "IHDR") {
+			throw new UnsupportedImageError("PNG has more than one IHDR");
+		}
+		if (type === "IEND") return;
+		pos = next;
 	}
-	// IHDR byte 28 is the interlace method. pngjs inflates Adam7 data with no output bound, so a
-	// small interlaced file can inflate to gigabytes: refuse it (the fallback is the accent gradient).
-	if (bytes.length >= 29 && bytes[28] === 1) throw new UnsupportedImageError("interlaced PNG");
+}
+
+function decodePngBytes(bytes: Uint8Array): Rgba {
+	checkPngChunks(bytes);
 	try {
 		const png = PNG.sync.read(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
 		const data = new Uint8Array(png.width * png.height * 4);

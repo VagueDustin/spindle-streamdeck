@@ -16,6 +16,35 @@ import { encodeJpeg, gradient, make, solid } from "../helpers/synth";
 
 type Rgb = [number, number, number];
 
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/** One PNG chunk: length, type, data, CRC. */
+const chunk = (type: string, data: Uint8Array = new Uint8Array()) => {
+	const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+	const out = Buffer.alloc(12 + data.length);
+	out.writeUInt32BE(data.length, 0);
+	body.copy(out, 4);
+	out.writeUInt32BE(crc32(body), 8 + data.length);
+	return out;
+};
+
+/** IHDR payload for an 8-bit RGB image. */
+const ihdrData = (width: number, height: number, interlaced = false) => {
+	const d = Buffer.alloc(13);
+	d.writeUInt32BE(width, 0);
+	d.writeUInt32BE(height, 4);
+	d[8] = 8;
+	d[9] = 2;
+	d[12] = interlaced ? 1 : 0;
+	return d;
+};
+
+const png = (...chunks: Buffer[]) => Uint8Array.from(Buffer.concat([PNG_SIGNATURE, ...chunks]));
+
+/** A valid PNG with extra chunks spliced in just before its IEND. */
+const withBeforeIend = (valid: Uint8Array, ...extra: Buffer[]) =>
+	Uint8Array.from(Buffer.concat([valid.subarray(0, valid.length - 12), ...extra, valid.subarray(valid.length - 12)]));
+
 const px = (img: Rgba, x: number, y: number) => {
 	const o = (y * img.width + x) * 4;
 	return Array.from(img.data.subarray(o, o + 4));
@@ -129,24 +158,10 @@ describe("decodeImage", () => {
 
 	test("an interlaced PNG is refused before inflating (decompression bomb)", () => {
 		// A 1x1 interlaced PNG whose IDAT inflates to 50 MB: pngjs inflates interlaced data unbounded.
-		const chunk = (type: string, data: Uint8Array) => {
-			const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
-			const out = Buffer.alloc(12 + data.length);
-			out.writeUInt32BE(data.length, 0);
-			body.copy(out, 4);
-			out.writeUInt32BE(crc32(body), 8 + data.length);
-			return out;
-		};
-		const ihdr = Buffer.alloc(13);
-		ihdr.writeUInt32BE(1, 0);
-		ihdr.writeUInt32BE(1, 4);
-		ihdr[8] = 8; // bit depth
-		ihdr[9] = 2; // RGB
-		ihdr[12] = 1; // Adam7
 		const bomb = Uint8Array.from(
 			Buffer.concat([
 				Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-				chunk("IHDR", ihdr),
+				chunk("IHDR", ihdrData(1, 1, true)),
 				chunk("IDAT", deflateSync(Buffer.alloc(50_000_000))),
 				chunk("IEND", new Uint8Array())
 			])
@@ -156,6 +171,67 @@ describe("decodeImage", () => {
 		expect(() => decodeImage(bomb)).toThrow(UnsupportedImageError);
 		expect(() => decodeImage(bomb)).toThrow(/interlaced PNG/);
 		expect(performance.now() - t0).toBeLessThan(50);
+	});
+
+	describe("PNG chunk structure (N1: pngjs honours a later IHDR, so only one may exist)", () => {
+		const valid = () => encodePng(solid([1, 2, 3], 4));
+		const refusedFast = (bytes: Uint8Array, pattern: RegExp) => {
+			const t0 = performance.now();
+			expect(() => decodeImage(bytes)).toThrow(UnsupportedImageError);
+			expect(() => decodeImage(bytes)).toThrow(pattern);
+			expect(performance.now() - t0).toBeLessThan(100);
+		};
+
+		test("a valid PNG followed by a second IHDR declaring 30000x30000 is refused fast", () => {
+			refusedFast(withBeforeIend(valid(), chunk("IHDR", ihdrData(30000, 30000))), /more than one IHDR/);
+		});
+
+		test("a valid PNG followed by a second, interlaced IHDR is refused fast", () => {
+			refusedFast(withBeforeIend(valid(), chunk("IHDR", ihdrData(1, 1, true))), /more than one IHDR/);
+		});
+
+		test("a benign first IHDR cannot hide a bomb behind a second interlaced IHDR", () => {
+			const bomb = png(
+				chunk("IHDR", ihdrData(1, 1)),
+				chunk("IDAT", deflateSync(Buffer.alloc(50_000_000))),
+				chunk("IHDR", ihdrData(1, 1, true)),
+				chunk("IEND")
+			);
+			refusedFast(bomb, /more than one IHDR/);
+		});
+
+		test("a file whose first chunk is not IHDR is refused", () => {
+			refusedFast(png(chunk("IDAT", deflateSync(Buffer.alloc(16))), chunk("IHDR", ihdrData(1, 1)), chunk("IEND")), /first chunk/);
+			refusedFast(png(chunk("tEXt", Buffer.from("a\0b")), chunk("IHDR", ihdrData(1, 1)), chunk("IEND")), /first chunk/);
+		});
+
+		test("a truncated chunk length is refused", () => {
+			const head = Buffer.concat([PNG_SIGNATURE, chunk("IHDR", ihdrData(1, 1))]);
+			refusedFast(Uint8Array.from(Buffer.concat([head, Buffer.from([0, 0])])), /truncated/);
+		});
+
+		test("a chunk that claims more data than the file holds is refused", () => {
+			const lie = Buffer.alloc(8);
+			lie.writeUInt32BE(0xffff_fff0, 0);
+			lie.write("IDAT", 4, "latin1");
+			refusedFast(Uint8Array.from(Buffer.concat([PNG_SIGNATURE, chunk("IHDR", ihdrData(1, 1)), lie])), /truncated/);
+		});
+
+		test("a PNG cut off before IEND is refused", () => {
+			const v = valid();
+			refusedFast(v.subarray(0, v.length - 12), /truncated/);
+		});
+
+		test("a chunk-spam file is refused by the chunk cap without a slow walk", () => {
+			const spam = Array.from({ length: 10_001 }, () => chunk("teXt"));
+			refusedFast(png(chunk("IHDR", ihdrData(1, 1)), ...spam, chunk("IEND")), /too many chunks/);
+		});
+
+		test("ordinary ancillary chunks around the image data still decode", () => {
+			const src = make(3, 2, (x, y) => [x * 50, y * 80, 7]);
+			const out = decodeImage(withBeforeIend(encodePng(src), chunk("teXt", Buffer.from("k\0v")), chunk("pHYs", Buffer.alloc(9))));
+			expect(Array.from(out.data)).toEqual(Array.from(src.data));
+		});
 	});
 
 	test("a JPEG with more than 100 SOS markers is refused before decoding (scan bomb)", () => {
