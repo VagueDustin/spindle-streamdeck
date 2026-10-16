@@ -38,7 +38,7 @@ Result key for every item: `PASS`, `FAIL`, or `N/A` (with the reason in Notes).
 - [x] **1.8 HTTPS with an internal CA (OS-trusted) connects.** With Home Assistant served over `https` with a certificate from a private CA that the operating system trusts (but Node's bundled list does not), and the Stream Deck app started normally (no `NODE_USE_SYSTEM_CA`), pasting the `https://` URL reaches "Connected · HA *version* · *n* media players". With that CA removed from the OS store and the Stream Deck app restarted, the status reads "Can't reach *host*: certificate not trusted" and the plugin log names the certificate error code. Re-add the CA afterwards. N/A if no such server is available.
   Result: PASS Notes: HTTPS with an internal CA initially failed ("Can't reach"); fixed by trusting the OS certificate store; re-tested PASS.
 
-## 2. Dial controls (spec section 6)
+## 2. Dial controls
 
 ### Volume mode (the default)
 
@@ -83,7 +83,7 @@ Result key for every item: `PASS`, `FAIL`, or `N/A` (with the reason in Notes).
 - [x] **2.17 Trigger descriptions.** The dial's settings in the Stream Deck app list Rotate "Volume / Skip", Push "Switch mode" and Touch "Play/Pause".
   Result: PASS Notes: —
 
-## 3. States and errors (spec section 7)
+## 3. States and errors
 
 For each row, check the strip and check that input behaves as the last column says.
 
@@ -169,7 +169,7 @@ For each row, check the strip and check that input behaves as the last column sa
 - [x] **8.2 Connections.** While running, Spindle connects only to the Home Assistant host and to cover-art hosts that Home Assistant points to (check with a firewall log or a network monitor).
   Result: PASS Notes: Only connections were to HA:443 and the local Stream Deck app.
 
-## 9. DRM build re-run (spec section 11)
+## 9. DRM build re-run
 
 Download the DRM-protected build from Maker Console: open the product, choose the **Versions** tab, select the version, and download. The upload must have "Publish after review" unticked.
 

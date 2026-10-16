@@ -92,8 +92,8 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("timing constants (spec 6)", () => {
-	it("match the spec", () => {
+describe("timing constants", () => {
+	it("have the designed values", () => {
 		expect([VOLUME_DEBOUNCE_MS, ADOPT_GUARD_MS, TAKEOVER_MS, TAKEOVER_FADE_MS]).toEqual([150, 2500, 1500, 300]);
 		expect([SKIP_TICKS, SKIP_COOLDOWN_MS, MODE_REVERT_MS, FLASH_MS]).toEqual([4, 600, 6000, 350]);
 	});
@@ -296,7 +296,7 @@ describe("tap", () => {
 	});
 });
 
-describe("states (spec 7)", () => {
+describe("states", () => {
 	it("not configured shows the setup message", () => {
 		const { c } = setup();
 		c.setConnStatus(null);

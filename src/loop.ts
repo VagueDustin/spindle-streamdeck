@@ -1,4 +1,4 @@
-// The one shared ticker (spec 4.3): every dial is ticked each heartbeat, but at most ONE
+// The one shared ticker: every dial is ticked each heartbeat, but at most ONE
 // setFeedback goes out per heartbeat across all dials, i.e. 10 sends/sec at 100 ms. The loop
 // only needs these four methods from a dial, so tests hand it plain fakes.
 import type { DialController } from "./dial/controller";

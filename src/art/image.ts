@@ -96,7 +96,7 @@ function checkPngChunks(bytes: Uint8Array): void {
 		if (next > bytes.length) throw new UnsupportedImageError("PNG is truncated inside a chunk");
 		if (count === 1) {
 			if (type !== "IHDR" || length !== 13) throw new UnsupportedImageError("PNG first chunk is not a valid IHDR");
-			// The spec forbids a zero dimension, and 0 x anything slips under the pixel cap while pngjs
+			// PNG forbids a zero dimension, and 0 x anything slips under the pixel cap while pngjs
 			// still allocates for the other axis (a 68-byte file with height 4294967295 aborts V8).
 			const width = dv.getUint32(pos + 8);
 			const height = dv.getUint32(pos + 12);

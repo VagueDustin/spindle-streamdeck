@@ -1,4 +1,4 @@
-// The `bg` layer (spec 4.2): built once per cover and accent, sent only when either changes.
+// The `bg` layer: built once per cover and accent, sent only when either changes.
 import type { Rgb } from "../art/accent";
 import { boxBlur, coverFit, encodePng, resizeArea, saturate, type Rgba } from "../art/image";
 import { STRIP_H, STRIP_W } from "./geometry";
@@ -10,7 +10,7 @@ const FIT_Y = (STRIP_H - FIT_SIDE) / 2;
 const BLUR_RADIUS = 10;
 const BLUR_PASSES = 3;
 const SATURATION = 1.25;
-// Raised from the spec's 0.45 to 0.55 for contrast after testing on hardware, so the text and volume bar stand out.
+// Raised from the original 0.45 to 0.55 for contrast after testing on hardware, so the text and volume bar stand out.
 const SCRIM = 0.55;
 
 const THUMB = { x: 8, y: 8, size: 58, radius: 6 };

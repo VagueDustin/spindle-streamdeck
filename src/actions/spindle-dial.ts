@@ -127,7 +127,7 @@ export class SpindleDial extends SingletonAction<DialSettings> {
 			if (this.dials.size === 0) {
 				this.loop.stop();
 				// A rejected token stays rejected (no socket, no timers): keeping it means a page switch
-				// does not retry the bad token, which HA would count toward an IP ban (spec 7).
+				// does not retry the bad token, which HA would count toward an IP ban.
 				if (this.hub?.conn.status.kind !== "auth_invalid") this.releaseHub();
 			}
 		});

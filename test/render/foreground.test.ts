@@ -203,7 +203,7 @@ describe("renderForeground: frame flags", () => {
 });
 
 describe("renderForeground: rest view", () => {
-	test("bars in the accent at x=74, base y=64, with the spec's heights; halved when buffering", () => {
+	test("bars in the accent at x=74, base y=64, with the designed heights; halved when buffering", () => {
 		const t = 1234;
 		const bars = (svg: string) => [...svg.matchAll(new RegExp(`<rect x="([\\d.]+)" y="([\\d.]+)" width="3" height="([\\d.]+)" rx="1.5" fill="${ACCENT_CSS.replace(/[()]/g, "\\$&")}"/>`, "g"))];
 		const full = bars(renderForeground(player(), ui(), ACCENT, t).svg);
@@ -225,7 +225,7 @@ describe("renderForeground: rest view", () => {
 		expect(svg).toMatch(/<rect x="81" y="54" width="3" height="10" rx="1" fill="#fff"/);
 	});
 
-	test("title and artist slots use the spec's fonts, with baselines 0.28 em below centres 20 and 40", () => {
+	test("title and artist slots use the designed fonts, with baselines 0.28 em below centres 20 and 40", () => {
 		const ts = texts(renderForeground(player(), ui(), ACCENT, 0).svg);
 		const title = ts.find((t) => t.body === "Short")!;
 		const artist = ts.find((t) => t.body === "Band")!;
@@ -262,7 +262,7 @@ describe("renderForeground: rest view", () => {
 		expect(f.animating).toBe(false);
 	});
 
-	// Spec 7: the status word shown under the friendly name when there is no title.
+	// The status word shown under the friendly name when there is no title.
 	const statusLine = (status: string) =>
 		texts(renderForeground(player({ status, title: undefined, artist: undefined }), ui(), ACCENT, 0).svg).find(
 			(t) => /font-size="13"/.test(t.attrs)
@@ -519,7 +519,7 @@ describe("composeSingle", () => {
 	});
 });
 
-describe("renderForeground: frame cost (spec 4.3)", () => {
+describe("renderForeground: frame cost", () => {
 	test("averages under 1 ms per frame on a scrolling, playing state", () => {
 		const p = player({ title: LONG_TITLE, artist: `${LONG_TITLE} (Remastered)` });
 		const u = ui({ sourceLabel: "Spotify" });

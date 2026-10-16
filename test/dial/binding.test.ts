@@ -167,7 +167,7 @@ describe("bindDial", () => {
 		expect(covers.load).toHaveBeenLastCalledWith("/p?token=t2&cache=c1");
 	});
 
-	it("a failed reload of the picture already shown keeps that cover (spec 7)", async () => {
+	it("a failed reload of the picture already shown keeps that cover", async () => {
 		const { conn, covers, ctl, sched } = setup(CONNECTED);
 		// A rebound controller still shows this picture's cover.
 		ctl.coverKey = "/p?cache=c1";

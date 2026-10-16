@@ -1,4 +1,4 @@
-// The per-dial state machine (spec 6 and 7). No SDK and no timers: input reads the clock
+// The per-dial state machine. No SDK and no timers: input reads the clock
 // through `now()`, everything that expires happens in `tick(t)`, and the frame loop asks
 // `urgent()` and `priority(t)` what to grant before pulling `frame(t)`.
 import { FALLBACK_ACCENT } from "../art/accent";
@@ -26,7 +26,7 @@ export const MODE_REVERT_MS = 6000;
 export const FLASH_MS = 350;
 /** At most one alert per dial this often: a spun dial would otherwise exceed Elgato's 10 calls/s guideline. */
 export const ALERT_THROTTLE_MS = 500;
-/** Marquee step per full-rate frame (spec 4.3: about 24 px/s at 10 fps); half-rate frames step double. */
+/** Marquee step per full-rate frame (about 24 px/s at 10 fps); half-rate frames step double. */
 export const SCROLL_STEP_PX = 2.4;
 
 const SETUP = "Set up Spindle in Stream Deck";
@@ -45,7 +45,7 @@ export type ControllerDeps = {
 	renderMode?: "layered" | "single";
 };
 
-/** What the strip shows. `blocked`: input is refused with an alert (spec 7). */
+/** What the strip shows. `blocked`: input is refused with an alert. */
 type View = { player: PlayerState | null; message?: DialUi["message"]; dimmed: boolean; badge?: string; blocked: boolean };
 
 const messageView = (headline: string, sub?: string): View => ({
@@ -266,7 +266,7 @@ export class DialController {
 		};
 	}
 
-	/** Spec 7's table, top to bottom. */
+	/** One view per connection and player state, checked top to bottom. */
 	private view(): View {
 		const c = this.conn;
 		if (!c || c.kind === "stopped" || !this.settings.entityId) return messageView(SETUP);

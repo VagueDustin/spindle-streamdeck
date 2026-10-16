@@ -6,5 +6,7 @@ com.vaguedustin.spindle.sdPlugin/logs/
 out/
 # Frames recorded by a SPINDLE_CAPTURE=1 build (src/capture.ts)
 /capture/
+# Archived capture runs that docs/images/captures.json points at; kept out of capture/ because the ring recorder prunes old files there
+/captures-archive/
 # Local working notes, reviews and deck photos: never published
 .superpowers/

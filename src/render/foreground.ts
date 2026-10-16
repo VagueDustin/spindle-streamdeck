@@ -1,5 +1,5 @@
-// The `fg` layer (spec 4.2): a transparent 200×100 SVG built per frame by string
-// concatenation, with no rasterisation in the plugin (spec 4.3, < 1 ms per frame).
+// The `fg` layer: a transparent 200×100 SVG built per frame by string
+// concatenation, with no rasterisation in the plugin (under 1 ms per frame).
 import type { Rgb } from "../art/accent";
 import type { PlayerState } from "../ha/playerState";
 import { FONT_STACK, STRIP_H, STRIP_W } from "./geometry";
@@ -17,7 +17,7 @@ export type DialUi = {
 	/** Marquee scroll position, px. */
 	offset: number;
 	sourceLabel?: string;
-	/** Replaces title and artist (spec 7). */
+	/** Replaces title and artist. */
 	message?: { headline: string; sub?: string };
 	dimmed: boolean;
 	/** e.g. "Reconnecting…" */
@@ -189,7 +189,7 @@ function trackChevrons(flashDir: -1 | 0 | 1, accent: Rgb): string {
 	);
 }
 
-/** Spec 7's word for a player with no title; other states are shown capitalised. */
+/** The word shown for a player with no title; other states are shown capitalised. */
 const STATUS_WORDS: Record<string, string> = {
 	idle: "Idle",
 	on: "Idle",
@@ -218,7 +218,7 @@ function restView(p: PlayerState, ui: DialUi, accent: Rgb, t: number): Rest {
 	return { svg, bars, scrolls: top.scrolls || sub.scrolls };
 }
 
-/** The volume takeover (spec 4.2): the plate, labels, big number and a wide bar with a knob. */
+/** The volume takeover: the plate, labels, big number and a wide bar with a knob. */
 function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
 	const T = TAKEOVER;
 	let s = ui.plate
@@ -247,7 +247,7 @@ const SUB_Y_AFTER_WRAP = 55;
 const SUB_LEADING = 15;
 
 /**
- * Spec 7's messages: the headline in the title slot, the sub-line in the artist slot. Never
+ * Status and error messages: the headline in the title slot, the sub-line in the artist slot. Never
  * scrolls. A headline that fits stays one line at 600/17; otherwise it wraps onto two lines
  * at 600/15. The sub-line follows in the next slot and wraps the same way.
  */

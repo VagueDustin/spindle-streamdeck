@@ -76,7 +76,7 @@ function errorText(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
 }
 
-/** One WebSocket to one Home Assistant, shared by every dial that uses it (spec §3). */
+/** One WebSocket to one Home Assistant, shared by every dial that uses it. */
 export class HaConnection {
 	private readonly wsUrl: string;
 	private readonly token: string;

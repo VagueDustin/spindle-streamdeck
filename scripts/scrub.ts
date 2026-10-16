@@ -1,4 +1,4 @@
-// Pre-publish scrub (spec §11). Run with `npm run scrub`; CI runs it on every push.
+// Pre-publish scrub. Run with `npm run scrub`; CI runs it on every push.
 //
 // Generic tier (always on): private IPv4, JWT-shaped strings, webhook API paths, PNG text chunks and
 // metadata, and commit emails that are not noreply addresses.
@@ -173,7 +173,7 @@ function main(): number {
 	const rawLocal = hasLocal ? fs.readFileSync(localPath, "utf8") : "";
 	const extra = parseDenylist(rawLocal);
 	if (hasLocal) for (const warning of denylistWarnings(rawLocal, extra)) console.warn(`scrub: ${warning}`);
-	if (!hasLocal && !process.env.CI) console.warn("scrub: local denylist missing (create .scrub-local.txt, see spec §11)");
+	if (!hasLocal && !process.env.CI) console.warn("scrub: local denylist missing (create .scrub-local.txt)");
 
 	const hits: Hit[] = [];
 	const skipped: string[] = [];

@@ -48,7 +48,7 @@ export function bindDial(args: BindArgs): () => void {
 			},
 			() => {
 				if (!active || myGen !== gen) return;
-				// Spec 7: the previous backdrop is kept. The controller already shows this very picture.
+				// The previous backdrop is kept. The controller already shows this very picture.
 				if (ctl.coverKey === picture) return;
 				ctl.setCover(null);
 				if (retries >= COVER_RETRIES) return;
@@ -110,7 +110,7 @@ export function mediaPlayerItems(
 }
 
 /**
- * The PI status line (spec 8). `status` null means no usable URL or token. `host` comes from the
+ * The property inspector status line. `status` null means no usable URL or token. `host` comes from the
  * normalised URL. `players` is the media-player count from the get_states after this connect;
  * until it arrives a connected status still reads "Connecting…".
  */

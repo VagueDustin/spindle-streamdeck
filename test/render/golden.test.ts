@@ -1,7 +1,7 @@
 // Golden renders: bg PNG + fg SVG composited through resvg with only the Noto Sans
 // fixture loaded, compared against committed PNGs. Regenerate with
 //   UPDATE_GOLDENS=1 npx vitest run test/render/golden.test.ts
-// and inspect every image against spec 4.2 before committing.
+// and inspect every image by eye before committing.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Rgba } from "../../src/art/image";
 import { FALLBACK_ACCENT, pickAccent, type Rgb } from "../../src/art/accent";
