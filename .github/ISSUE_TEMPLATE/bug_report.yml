@@ -1,0 +1,76 @@
+name: Bug report
+description: Something in Spindle isn't working as I'd expect.
+labels: ["bug"]
+body:
+  - type: input
+    id: spindle-version
+    attributes:
+      label: Spindle version
+      description: Shown in the Stream Deck app under Preferences → Plugins.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: streamdeck-version
+    attributes:
+      label: Stream Deck app version
+      placeholder: "7.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.10.0"
+    validations:
+      required: true
+  - type: input
+    id: integration
+    attributes:
+      label: Media player integration
+      description: The integration behind the media player, for example Sonos, Cast or Spotify.
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What I expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Plugin log excerpt (optional)
+      description: "Remove your HA address first; the plugin never logs your token."
+      render: text
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Privacy check
+      options:
+        - label: This report contains no Home Assistant token and no private URL.
+          required: true

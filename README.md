@@ -170,7 +170,7 @@ If this computer is banned, Home Assistant refuses every connection from it, and
 - **Use `https` for a remote Home Assistant.** With an `http://` URL the token crosses the network in clear text, which is only acceptable on a network you trust.
 - **No telemetry, no analytics.** Spindle talks only to the Home Assistant URL you enter, plus any external cover-art URLs that Home Assistant points to.
 
-See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
+See [PRIVACY.md](PRIVACY.md) for the full privacy policy. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## How it works
 

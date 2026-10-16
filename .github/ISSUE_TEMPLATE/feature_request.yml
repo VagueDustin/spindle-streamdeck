@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an improvement to Spindle.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What I'm trying to do
+      description: The problem or use case, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What I'd like to see
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives I've tried (optional)
