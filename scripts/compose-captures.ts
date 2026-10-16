@@ -1,4 +1,4 @@
-// Composes the README gallery and GIF from frames captured on a real Stream Deck+ (ruling R29).
+// Composes the README gallery and GIF from frames captured on a real Stream Deck+.
 // Run with `npm run gallery:captures`.
 //
 // Captures come from a dev-only capture build (`SPINDLE_CAPTURE=1 npm run build`, see

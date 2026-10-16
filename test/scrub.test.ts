@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import { checkCommitEmails, denylistWarnings, parseDenylist, scanPng, scanText } from "../scripts/scrub";
 
-// Sensitive-looking inputs are assembled at runtime (ruling R5) so this file scans clean.
+// Sensitive-looking inputs are assembled at runtime so this file scans clean.
 const ip = (...parts: Array<string | number>) => parts.join(".");
 const jwt = ["eyJ" + "hbGciOiJIUzI1NiJ9", "eyJ" + "zdWIiOiJzcGluZGxlIn0", "c2lnbmF0dXJlMTIzNDU2"].join(".");
 const webhook = "/api/" + "webhook/abc";

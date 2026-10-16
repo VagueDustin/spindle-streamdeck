@@ -23,7 +23,7 @@ export type DialUi = {
 	/** e.g. "Reconnecting…" */
 	badge?: string;
 	buffering: boolean;
-	/** The takeover plate (ruling R20), a PNG data URI drawn under the takeover only; built once per cover. */
+	/** The takeover plate, a PNG data URI drawn under the takeover only; built once per cover. */
 	plate?: string;
 };
 
@@ -86,8 +86,8 @@ type Drawn = { svg: string; scrolls: boolean };
 
 /**
  * Text in a box: drawn plainly when the estimate fits, otherwise two copies 28 px apart
- * scroll by `offset` inside a mask the width of the box. Ruling R19: the deck's Qt SVG
- * renderer ignores clipPath (and paints its rect black), but honours a mask in <defs>.
+ * scroll by `offset` inside a mask the width of the box. The deck's Qt SVG
+ * renderer ignores clipPath (verified on hardware; it paints its rect black), but honours a mask in <defs>.
  */
 function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string, offset: number): Drawn {
 	const body = escapeXml(raw);
@@ -239,7 +239,7 @@ function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
 	return s;
 }
 
-/** Two-line message headlines (ruling R13) step down to 600/15 px on these centres. */
+/** Two-line message headlines step down to 600/15 px on these centres. */
 const WRAPPED_FONT: FontSpec = { size: 15, weight: 600 };
 const WRAPPED_Y = [TITLE_Y, 37];
 /** The sub-line's first centre after a two-line headline; its own lines are 15 px apart. */
@@ -249,7 +249,7 @@ const SUB_LEADING = 15;
 /**
  * Spec 7's messages: the headline in the title slot, the sub-line in the artist slot. Never
  * scrolls. A headline that fits stays one line at 600/17; otherwise it wraps onto two lines
- * at 600/15 (R13). The sub-line follows in the next slot and wraps the same way.
+ * at 600/15. The sub-line follows in the next slot and wraps the same way.
  */
 function messageView(m: { headline: string; sub?: string }): string {
 	const oneLine = estimateWidth(m.headline.trim(), TITLE_FONT) <= TEXT_W;
@@ -291,7 +291,7 @@ export function renderForeground(p: PlayerState | null, ui: DialUi, accent: Rgb,
 		animating = rest.bars || rest.scrolls;
 		halfRate = rest.bars && !rest.scrolls;
 		// The takeover is drawn at alpha over the unfaded rest view, as the predecessor's canvas
-		// globalAlpha did (visual diff row 9); at full alpha the takeover replaces it.
+		// globalAlpha did; at full alpha the takeover replaces it.
 		const alpha = ui.mode === "volume" ? clamp(ui.takeoverAlpha, 0, 1) : 0;
 		if (alpha <= 0) body = rest.svg;
 		else if (alpha >= 1) body = takeover(p, ui, accent);

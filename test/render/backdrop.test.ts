@@ -73,7 +73,7 @@ describe("buildBackdrop", () => {
 	});
 });
 
-// Ruling R20: the takeover's backdrop, as the predecessor painted it — the blurred, saturated
+// The takeover's backdrop, as the predecessor painted it — the blurred, saturated
 // cover with no thumbnail under black 0.62 (x 0.38), or the plain accent gradient with no cover.
 describe("buildTakeoverPlate", () => {
 	/** Mean of the 2x2 block of `img` whose top-left is (x, y). */

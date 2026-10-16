@@ -53,7 +53,7 @@ Elgato's current rules (from docs.elgato.com/maker-console/submitting-products, 
 - **Plugin icon:** PNG, 256 x 256 px and 512 x 512 px (`imgs/plugin/marketplace.png` and `marketplace@2x.png`).
 - Images must show the real product and must be ones you own. Text in them must be English.
 
-The README images in `docs/images/` are 600 x 300 px (the strip at 3x), so they are **not** the right size to upload. The gallery images below are composed for the Marketplace instead: 1920 x 960 PNG, each from a real hardware capture (ruling R29). The strip is rendered at 4.5x (900 x 450, straight from the capture's vector overlay, so nothing is stretched) and centred on a darkened, heavily blurred copy of that frame's own backdrop, with a short caption in Segoe UI. They are written through pngjs, so they carry no text or metadata chunks.
+The README images in `docs/images/` are 600 x 300 px (the strip at 3x), so they are **not** the right size to upload. The gallery images below are composed for the Marketplace instead: 1920 x 960 PNG, each from a real hardware capture. The strip is rendered at 4.5x (900 x 450, straight from the capture's vector overlay, so nothing is stretched) and centred on a darkened, heavily blurred copy of that frame's own backdrop, with a short caption in Segoe UI. They are written through pngjs, so they carry no text or metadata chunks.
 
 `npm run gallery:captures` rebuilds them from `docs/images/captures.json` (a still with `"marketplace": "<caption>"` gets one) when the local capture archive is present.
 
@@ -65,13 +65,13 @@ The README images in `docs/images/` are 600 x 300 px (the strip at 3x), so they 
 | `docs/images/marketplace/paused.png` | "WE ARE EMPIRE", "STARSET", "Streaming", pause glyph, "32", caption "Pause / play" | Gallery 4 |
 | `docs/images/marketplace/cjk.png` | Chinese title, "Metal Scar Radio", "Streaming", "24", caption "Any language" | **Optional, probably leave out:** Elgato says text in gallery images must be English, and this one shows a Chinese title and CJK cover art. Use it only if the form accepts it (it shows the real CJK glyph support); the other four are English. |
 
-The images show no device, machine or room name and no Home Assistant or Elgato logo. They do show **real album artwork as the plugin displays it** (the cover art of the playing track), which is third-party artwork: the owner must confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting (see the checklist), or else replace the images with the procedural renders from `npm run screenshots`, which use generated art. The thumbnail (`marketplace/hero.png`) and the README hero (`docs/images/hero.png`) are a real capture of the track "Protocol Flow" by Metal Scar Radio from the author's deck. The owner chose a capture over the hardware photo that the design spec (section 10) called for, so there is no `hero.jpg` and none is pending.
+The images show no device, machine or room name and no Home Assistant or Elgato logo. They do show **real album artwork as the plugin displays it** (the cover art of the playing track), which is third-party artwork: I must confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting (see the checklist), or else replace the images with the procedural renders from `npm run screenshots`, which use generated art. The thumbnail (`marketplace/hero.png`) and the README hero (`docs/images/hero.png`) are a real capture of the track "Protocol Flow" by Metal Scar Radio from my deck. I chose a capture over the hardware photo that the design spec (section 10) called for, so there is no `hero.jpg` and none is pending.
 
 The 600 x 300 README images map to the same scenes:
 
 | File (600 x 300) | What it shows | Use |
 |---|---|---|
-| `docs/images/hero.png` | Rest view of "Protocol Flow" by Metal Scar Radio with the play bars showing, a real capture from the author's deck and the README hero (the same frame as the thumbnail above; `rest.png` is a different capture) | README; composed into the thumbnail above |
+| `docs/images/hero.png` | Rest view of "Protocol Flow" by Metal Scar Radio with the play bars showing, a real capture from my deck and the README hero (the same frame as the thumbnail above; `rest.png` is a different capture) | README; composed into the thumbnail above |
 | `docs/images/rest.png` | Rest view, title scrolling, the Streaming source label | README only |
 | `docs/images/takeover.png` | Volume takeover over a blurred cover | README; composed into Gallery 2 |
 | `docs/images/tracks.png` | Tracks mode, forward chevrons flashing | README; composed into Gallery 3 |
@@ -80,7 +80,7 @@ The 600 x 300 README images map to the same scenes:
 | `docs/images/no-art.png` | No cover art: gradient and placeholder | README; an optional extra |
 | `docs/images/spindle.gif` | The title scrolling, then a volume takeover that fades back | Source for an MP4 (1920 x 1080) if a video is wanted; the Marketplace takes MP4, not GIF |
 
-Elgato also says products that need hardware or paid-service integrations must include a demo video showing the plugin fully working. Spindle needs a Stream Deck+ and a Home Assistant server, so plan a short MP4 of the real deck (1920 x 1080, 50 MB or less) with a 1920 x 960 thumbnail (`docs/images/marketplace/hero.png` can serve). **Recording the demo video is the owner's job** (see the checklist below); `spindle.gif` is only a reference for the scrolling-then-takeover sequence. Check today whether it is mandatory for this plugin.
+Elgato also says products that need hardware or paid-service integrations must include a demo video showing the plugin fully working. Spindle needs a Stream Deck+ and a Home Assistant server, so plan a short MP4 of the real deck (1920 x 1080, 50 MB or less) with a 1920 x 960 thumbnail (`docs/images/marketplace/hero.png` can serve). **Recording the demo video is my job** (see the checklist below); `spindle.gif` is only a reference for the scrolling-then-takeover sequence. Check today whether it is mandatory for this plugin.
 
 No Home Assistant logo, Elgato logo or other branding goes in any image (spec section 13, item 6). The one third-party element is the album artwork the plugin shows, covered in the checklist.
 
@@ -97,9 +97,9 @@ No Home Assistant logo, Elgato logo or other branding goes in any image (spec se
 - [ ] Image sizes still 1920 x 960 PNG (thumbnail and gallery), 3 gallery items minimum, MP4 at 1920 x 1080 for video. Plugin icon still 256 and 512 px.
 - [ ] Description length limit and release-notes field, as the form shows them.
 - [ ] Demo-video requirement for hardware plugins, as the form shows it.
-- [ ] **Record the demo video (owner):** a short MP4, 1920 x 1080, 50 MB or less, filmed on the real Stream Deck+ showing the plugin fully working: now playing with a scrolling title, turning the dial (volume takeover), pressing to switch to tracks mode and skipping a track, and tapping the strip to play or pause. No device, room, account or Home Assistant names on screen, and no third-party logos. Upload it to the gallery, with `docs/images/marketplace/hero.png` as its 1920 x 960 thumbnail.
+- [ ] **Record the demo video:** a short MP4, 1920 x 1080, 50 MB or less, filmed on the real Stream Deck+ showing the plugin fully working: now playing with a scrolling title, turning the dial (volume takeover), pressing to switch to tracks mode and skipping a track, and tapping the strip to play or pause. No device, room, account or Home Assistant names on screen, and no third-party logos. Upload it to the gallery, with `docs/images/marketplace/hero.png` as its 1920 x 960 thumbnail.
 - [ ] Gallery: upload the four English PNGs in `docs/images/marketplace/` (hero, takeover, tracks, paused; the table above says which is the thumbnail), leave out `cjk.png` unless the form accepts non-English text, and look at each one in the form preview.
-- [ ] **Album-art ownership (owner):** the gallery images and the demo video show real album artwork as displayed by the plugin. Confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting. If it is not, replace the gallery with the procedural renders from `npm run screenshots` (generated art, nothing third-party), and film the video with a track whose artwork you own or with no artwork shown.
+- [ ] **Album-art ownership:** the gallery images and the demo video show real album artwork as displayed by the plugin. Confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting. If it is not, replace the gallery with the procedural renders from `npm run screenshots` (generated art, nothing third-party), and film the video with a track whose artwork you own or with no artwork shown.
 - [ ] Category list: Music / Audio is still offered. If it isn't, pick the nearest one and record it here.
 - [ ] Guidelines that may affect Spindle, as read on 2026-10-15 (decide each one before submitting):
   - The plugin guidelines ask for **between 2 and 30 actions**. Spindle deliberately ships **one** purpose-built dial action (**Now Playing**) in v1, so expect to explain it (see Reviewer notes above). Check whether review enforces the range.
@@ -110,9 +110,9 @@ No Home Assistant logo, Elgato logo or other branding goes in any image (spec se
 - [ ] **No Home Assistant logo** (spec section 13, item 6): no HA logo, mark or branding in the plugin icon, the preview images, the video or the description. The "for Home Assistant" form of the name is descriptive only, and the description ends "Not affiliated with Home Assistant or Elgato."
 - [ ] The README, `PRIVACY.md` and the support link all work from outside (open each URL in a private window once the repository is public).
 
-## Build and DRM steps (from the task plan, Step 7)
+## Build and DRM steps
 
-Publishing the repository, the version bump, the pack and the upload are the owner's steps. In order:
+Publishing the repository, the version bump, the pack and the upload are done by hand. In order:
 
 1. Search the Marketplace for "Spindle" to rule out a clash (see above).
 2. Create the Maker Console account (https://maker.elgato.com/signin).

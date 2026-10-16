@@ -1,4 +1,4 @@
-// Dev-only frame capture (ruling R29): a build made with SPINDLE_CAPTURE=1 records every
+// Dev-only frame capture: a build made with SPINDLE_CAPTURE=1 records every
 // setFeedback payload it sends, so the README gallery can show real frames with real covers
 // (`npm run gallery:captures`). Normal builds have __SPINDLE_CAPTURE__ false and drop this module.
 //

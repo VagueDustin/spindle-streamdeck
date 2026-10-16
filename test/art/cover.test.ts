@@ -4,7 +4,7 @@ import { CoverLoader, coverKey, resolvePictureUrl } from "../../src/art/cover";
 import { UnsupportedImageError } from "../../src/art/image";
 import { encodeJpeg, encodePng, solid } from "../helpers/synth";
 
-// Assembled at runtime so the repo-wide scan stays clean (ruling R5).
+// Assembled at runtime so the repo-wide scan stays clean.
 const TOKEN = "tok" + "-abc-123";
 
 type Handler = (req: IncomingMessage, res: ServerResponse) => void;

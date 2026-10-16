@@ -58,7 +58,7 @@ const texts = (svg: string) => [...svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/
 const num = (attrs: string, name: string) => Number(new RegExp(`\\b${name}="([-\\d.]+)"`).exec(attrs)?.[1]);
 
 /**
- * Visual diff row 4: the predecessor's canvas textBaseline "middle" puts Segoe UI's baseline
+ * The predecessor's canvas textBaseline "middle" puts Segoe UI's baseline
  * 0.28 em below the line centre, so every text y is centre + 0.28 * size (one decimal place).
  */
 const BASELINE_EM = 0.28;
@@ -110,8 +110,8 @@ describe("renderForeground: XML safety (Review Focus 1)", () => {
 		}
 	});
 
-	// Ruling R19: Stream Deck's Qt SVG renderer ignores <clipPath> and, outside <defs>, paints
-	// its rect as a black block. Masks inside <defs> clip correctly on the device.
+	// Stream Deck's Qt SVG renderer ignores <clipPath> and, outside <defs>, paints its rect as a
+	// black block (verified on hardware). Masks inside <defs> clip correctly on the device.
 	test("no view clips with clipPath; every mask is defined inside <defs> and referenced", () => {
 		const long = player({ title: LONG_TITLE, artist: LONG_TITLE });
 		const frames = [
@@ -237,7 +237,7 @@ describe("renderForeground: rest view", () => {
 		expect(num(artist.attrs, "y")).toBe(baselineY(40, 13));
 	});
 
-	// Visual diff row 8: the predecessor asked for 500, which Segoe UI lacks, so it rendered Regular.
+	// The predecessor asked for 500, which Segoe UI lacks, so it rendered Regular.
 	test("the source label is 400/11 px white 0.6 at x=92, baseline 0.28 em below centre 58", () => {
 		const ts = texts(renderForeground(player(), ui({ sourceLabel: "Spotify" }), ACCENT, 0).svg);
 		const label = ts.find((t) => t.body === "Spotify")!;
@@ -323,7 +323,7 @@ describe("renderForeground: takeover", () => {
 	test("alpha 1: the plate fills the strip under the labels, with the number at 44 px", () => {
 		const svg = renderForeground(player(), ui({ takeoverAlpha: 1, volume: 64, plate: PLATE }), ACCENT, 0).svg;
 		expect(plateTag(svg)).toBe(PLATE_TAG);
-		// R20: the plate replaces the 0.62 black scrim, and the rest view is fully covered.
+		// The plate replaces the 0.62 black scrim, and the rest view is fully covered.
 		expect(svg).not.toContain('fill="#000"');
 		expect(svg).not.toContain(">Band<");
 		const big = texts(svg).find((t) => t.body === "64" && /font-size="44"/.test(t.attrs))!;
@@ -354,7 +354,7 @@ describe("renderForeground: takeover", () => {
 		expect(svg).not.toContain('font-size="44"');
 	});
 
-	// Visual diff row 9: the rest view stays unfaded and only the takeover (plate included)
+	// The rest view stays unfaded and only the takeover (plate included)
 	// is drawn at alpha, as the predecessor's canvas globalAlpha did.
 	test("a partial alpha draws the plate and contents in one group at alpha over the unfaded rest view", () => {
 		const svg = renderForeground(player(), ui({ takeoverAlpha: 0.4, plate: PLATE }), ACCENT, 0).svg;
@@ -399,7 +399,7 @@ describe("renderForeground: tracks mode", () => {
 			fill: m[2]
 		}));
 
-	// Visual diff row 5, the predecessor's formula: triangle i starts at cx + dir*(0.9i - 0.45)*16
+	// The predecessor's formula: triangle i starts at cx + dir*(0.9i - 0.45)*16
 	// and its tip is 0.7*16 further in dir, so the pairs span 41.6-67.2 and 132.8-158.4.
 	test("back and forward chevrons on the predecessor's spacing with a centre dot, and no volume number", () => {
 		const svg = renderForeground(player(), ui({ mode: "tracks" }), ACCENT, 0).svg;
@@ -445,7 +445,7 @@ describe("renderForeground: messages, dim and badge", () => {
 		expect(f).toMatchObject({ animating: false, halfRate: false });
 	});
 
-	// Ruling R13: a headline that fits stays one line at 600/17; otherwise it wraps onto at
+	// A headline that fits stays one line at 600/17; otherwise it wraps onto at
 	// most two lines at 600/15 on y=20 and y=37, and the sub-line moves down to y=55.
 	const centreY = (attrs: string, size: number) => num(attrs, "y") - size * BASELINE_EM;
 

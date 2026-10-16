@@ -21,7 +21,7 @@ const MAX_JPEG_SCANS = 100;
 /**
  * A decoded PNG is held three times over (pngjs, the composite, the coverFit crop). Measured: 16 MP at
  * 16-bit RGBA peaks at about 560-680 MB, and the peak scales with pixels, so 12 MP (in line with the
- * JPEG path's effective ~11 MP, ruling R9) peaks at about three quarters of that.
+ * JPEG path's effective ~11 MP) peaks at about three quarters of that.
  */
 const MAX_PNG_MEGAPIXELS = 12;
 const MAX_PNG_PIXELS = MAX_PNG_MEGAPIXELS * 1_000_000;

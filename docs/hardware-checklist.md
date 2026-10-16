@@ -9,7 +9,7 @@ Use a spare profile page, so the checks don't disturb a working layout. Spindle 
 | Field | Value |
 |---|---|
 | Date | 2026-10-15 |
-| Tester | the author |
+| Tester | me |
 | Build under test | dev build |
 | Plugin version | 0.1.0 |
 | Stream Deck app version | 7.x |
@@ -94,9 +94,9 @@ For each row, check the strip and check that input behaves as the last column sa
 - [x] **3.3 Token rejected** (paste a wrong token). Strip: "Check token". Input is ignored with an alert. The inspector status says "Token rejected". Spindle does not reconnect until the URL or token changes.
   Result: PASS Notes: —
 - [ ] **3.4 Entity missing** (delete or rename the entity in Home Assistant). Strip: "Player not found" and the entity id. Input is ignored with an alert. The player list shows `(not found) media_player.…`.
-  Result: not run Notes: owner chose not to rename HA entities
+  Result: not run Notes: I chose not to rename HA entities
 - [ ] **3.5 Unavailable or unknown** (take the device offline). Strip: the last frame dimmed with "Unavailable". Input is ignored with an alert.
-  Result: not run Notes: owner chose not to take a device offline
+  Result: not run Notes: I chose not to take a device offline
 - [x] **3.6 Off.** Strip: an accent gradient with the friendly name and "Off". Touch sends play/pause, and turning is ignored.
   Result: PASS Notes: —
 - [x] **3.7 Idle, on or standby with no title.** Strip: the friendly name and "Idle". Input works normally.
@@ -147,7 +147,7 @@ For each row, check the strip and check that input behaves as the last column sa
 - [x] **6.2 Memory over 30 minutes.** Play music for 30 minutes with the strip animating. In Task Manager, note the Stream Deck node process (the one running the plugin) at the start and the end. The memory climbs by no more than a few megabytes and settles.
   Start: ~70 MB. After 10 min: 100-115 MB band (118 MB peak at minute 9). After 30 min: 112 MB (at minute 31). Result: PASS Notes: One plugin process sampled every minute for 31 min. Private memory went from ~70 MB to a steady 100-115 MB band within ~10 min, with no growth over the last 20 min (peak 118 MB at minute 9, 112 MB at minute 31). GC sawtooth, no leak. A multi-hour soak is optional.
 - [ ] **6.3 Home Assistant restarts mid-play.** Restart Home Assistant while a track plays. The strip dims and shows "Reconnecting…", and it recovers by itself with the right player state, without touching the Stream Deck app. Input works again once it recovers.
-  Result: not run Notes: owner chose not to restart HA
+  Result: not run Notes: I chose not to restart HA
 - [x] **6.4 Network drop and return.** Disconnect and reconnect the network for about a minute. The same recovery happens, with retries 1 to 30 seconds apart.
   Result: PASS Notes: —
 - [ ] **6.5 Stream Deck app restart.** Quit and reopen the Stream Deck app. The dials come back with the right state, without re-entering the URL or token.
@@ -174,13 +174,13 @@ For each row, check the strip and check that input behaves as the last column sa
 Download the DRM-protected build from Maker Console: open the product, choose the **Versions** tab, select the version, and download. The upload must have "Publish after review" unticked.
 
 - [ ] **9.1 Install the DRM build** over (or instead of) the dev copy, with the dev copy unlinked so only one Spindle is loaded. Record the build below.
-  Result: not run Notes: pending, owner (DRM build)
+  Result: not run Notes: pending (DRM build)
 - [ ] **9.2 Re-run sections 1 to 8** against the DRM build. Every item must pass again. Tick them in a fresh copy of this file (or write the DRM result next to each one) so the two runs stay separate.
-  Result: not run Notes: pending, owner (DRM build)
+  Result: not run Notes: pending (DRM build)
 - [ ] **9.3 DRM-specific checks.** The plugin loads and connects, the property inspector opens, the layout loads, the logs show no file-integrity or manifest-read errors, and the plugin survives a Stream Deck app restart.
-  Result: not run Notes: pending, owner (DRM build)
+  Result: not run Notes: pending (DRM build)
 - [ ] **9.4 Memory re-check.** Repeat the 30-minute memory run (6.2) on the DRM build.
-  Result: not run Notes: pending, owner (DRM build)
+  Result: not run Notes: pending (DRM build)
 
 DRM build version: ____ Downloaded on: ____
 

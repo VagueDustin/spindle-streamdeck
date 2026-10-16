@@ -1,6 +1,6 @@
 # Hardware spike results (spec section 12)
 
-Method: 2026-10-14, Stream Deck 7.x on Windows 11, on the author's Stream Deck+. Spike plugin drew a `bg` PNG (red-to-blue gradient, white 58x58 square) and a 10 fps `fg` SVG over it. Read from a full-resolution capture of the Stream Deck app's strip preview (the app renders the strip bitmap on the host and sends it to the device) plus the operator's observation of the deck.
+Method: 2026-10-14, Stream Deck 7.x on Windows 11, on my Stream Deck+. Spike plugin drew a `bg` PNG (red-to-blue gradient, white 58x58 square) and a 10 fps `fg` SVG over it. Read from a full-resolution capture of the Stream Deck app's strip preview (the app renders the strip bitmap on the host and sends it to the device) plus my observation of the deck.
 
 Layout used (for reproducibility): line 1 `Spindle Test Ag 0123` at x=0, y=18, 600/17px. Lines 2-4 (`夜に駆ける — YOASOBI`, `아이유 Love wins all`, `Ünïcødé & <xml>`) at x=74, y=38/56/74, 400/13px (moved from x=2 because they were hidden behind the white 58x58 square). The Hangul line is fully visible; the CJK line is clipped at the right edge.
 
@@ -15,4 +15,4 @@ Layout used (for reproducibility): line 1 `Spindle Test Ag 0123` at x=0, y=18, 6
 
 Decision: `RENDER_MODE = "layered"`.
 
-Task 11 budget: keep 10 fps / 100 ms per frame, and schedule ticks against a monotonic clock so drift does not accumulate (skip frames rather than queue them).
+Frame budget: keep 10 fps / 100 ms per frame, and schedule ticks against a monotonic clock so drift does not accumulate (skip frames rather than queue them).

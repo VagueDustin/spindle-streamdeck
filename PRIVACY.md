@@ -22,7 +22,7 @@ To remove everything, delete the dials and uninstall Spindle in the Stream Deck 
 
 - No telemetry, no analytics, no crash reporting and no tracking of any kind.
 - It never sends your token anywhere except to your Home Assistant.
-- It never sends your data to the author or to any third party.
+- It never sends your data to me or to any third party.
 
 ## What Spindle can do in Home Assistant
 

@@ -10,11 +10,11 @@
 
 Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" display for any Home Assistant `media_player`. It shows the cover art, the title and artist, and the volume. Turn the dial to set the volume, press it to skip tracks, and tap the strip to play or pause. Nothing needs to change on the Home Assistant side.
 
-![Spindle's now playing strip on a Stream Deck+ dial, showing the track Protocol Flow by Metal Scar Radio: cover art, title, artist, play bars and the volume. A real capture from the author's deck.](docs/images/hero.png)
+![Spindle's now playing strip on a Stream Deck+ dial, showing the track Protocol Flow by Metal Scar Radio: cover art, title, artist, play bars and the volume. A real capture from my deck.](docs/images/hero.png)
 
 ## Gallery
 
-These are real frames captured from the author's Stream Deck+: exactly what the plugin sent to the dial, rendered at 3× the strip's 200×100 pixels through the same pipeline, with the backdrop image under the plugin's SVG overlay.
+These are real frames captured from my Stream Deck+: exactly what the plugin sent to the dial, rendered at 3× the strip's 200×100 pixels through the same pipeline, with the backdrop image under the plugin's SVG overlay.
 
 <table>
   <tr>
@@ -218,7 +218,7 @@ Never raise the Stream Deck SDK's log level to `trace`. At that level the SDK lo
 
 ## Credits and license
 
-Built on the Elgato [Stream Deck SDK](https://www.npmjs.com/package/@elgato/streamdeck) and [sdpi-components](https://sdpi-components.dev/), with [jpeg-js](https://www.npmjs.com/package/jpeg-js) and [pngjs](https://www.npmjs.com/package/pngjs) for images. Development uses [resvg-js](https://www.npmjs.com/package/@resvg/resvg-js), [gifenc](https://www.npmjs.com/package/gifenc) and [Vitest](https://vitest.dev/). The golden tests bundle [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans) under the SIL Open Font License. The design and the accent picker grew out of the author's earlier private plugin.
+Built on the Elgato [Stream Deck SDK](https://www.npmjs.com/package/@elgato/streamdeck) and [sdpi-components](https://sdpi-components.dev/), with [jpeg-js](https://www.npmjs.com/package/jpeg-js) and [pngjs](https://www.npmjs.com/package/pngjs) for images. Development uses [resvg-js](https://www.npmjs.com/package/@resvg/resvg-js), [gifenc](https://www.npmjs.com/package/gifenc) and [Vitest](https://vitest.dev/). The golden tests bundle [Noto Sans](https://fonts.google.com/noto/specimen/Noto+Sans) under the SIL Open Font License. The design and the accent picker grew out of my earlier private plugin.
 
 Spindle is released under the [MIT license](LICENSE).
 

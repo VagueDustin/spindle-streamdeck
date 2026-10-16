@@ -68,7 +68,7 @@ export class DialController {
 
 	private cover: CoverResult | null = null;
 	private bgUri: string;
-	/** The takeover plate (ruling R20), built with the backdrop; only takeover frames embed it. */
+	/** The takeover plate, built with the backdrop; only takeover frames embed it. */
 	private plateUri: string;
 	private bgPending = true;
 	private firstSent = false;

@@ -10,7 +10,7 @@ const FIT_Y = (STRIP_H - FIT_SIDE) / 2;
 const BLUR_RADIUS = 10;
 const BLUR_PASSES = 3;
 const SATURATION = 1.25;
-// Raised from the spec's 0.45 to 0.55 at the owner's request after the on-deck review, so the text and volume bar stand out.
+// Raised from the spec's 0.45 to 0.55 for contrast after testing on hardware, so the text and volume bar stand out.
 const SCRIM = 0.55;
 
 const THUMB = { x: 8, y: 8, size: 58, radius: 6 };
@@ -19,7 +19,7 @@ const GRADIENT_TOP = 0.3;
 const GRADIENT_BOTTOM = 0.1;
 const PLACEHOLDER = 0.55;
 /**
- * The takeover plate (ruling R20): the predecessor repainted the blurred cover without the
+ * The takeover plate: the predecessor repainted the blurred cover without the
  * thumbnail, then black at 0.62, so the cover keeps 0.38. With no cover it repainted the bare
  * gradient. Half resolution is enough for a blur this wide; the fg scales it to the strip.
  */

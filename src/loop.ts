@@ -13,7 +13,7 @@ export type FrameLoopOptions = {
 	/**
 	 * The clock. It MUST be the same clock the controllers were built with (their `deps.now`):
 	 * controllers stamp input with their `now` and compare it against the `t` this loop passes to
-	 * `tick(t)`. Defaults to `Date.now`, which is what Task 12 gives the controllers too.
+	 * `tick(t)`. Defaults to `Date.now`, which is what the plugin gives the controllers too.
 	 */
 	now?: () => number;
 	setIntervalImpl?: typeof setInterval;

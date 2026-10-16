@@ -344,7 +344,7 @@ describe("states (spec 7)", () => {
 	it("a missing entity shows Player not found with the entity id", () => {
 		const { c } = setup({ p: null });
 		expect(c.ui.message).toEqual({ headline: "Player not found", sub: ENTITY });
-		// The headline wraps onto two lines (ruling R13), and so does the entity id.
+		// The headline wraps onto two lines, and so does the entity id.
 		const svg = fgSvg(c.frame(Date.now()));
 		expect(svg).toContain(">Player not<");
 		expect(svg).toContain(">found<");
@@ -587,7 +587,7 @@ describe("frames and priority", () => {
 		expect(c.coverKey).toBeNull();
 	});
 
-	// Ruling R20: one takeover plate per cover, built with the backdrop and cached with it.
+	// One takeover plate per cover, built with the backdrop and cached with it.
 	it("builds the takeover plate once per cover and hands it to the renderer", () => {
 		const { c } = setup();
 		expect(c.ui.plate).toBe(buildTakeoverPlate(null, FALLBACK_ACCENT));
