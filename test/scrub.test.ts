@@ -139,14 +139,25 @@ describe("checkCommitEmails", () => {
 	const noreply = "VagueDustin@users.noreply.github.com";
 	const record = (sha: string, ae: string, ce: string, trailers = "") => `\x1e${sha}\t${ae}\t${ce}\t${trailers}\n`;
 
-	it("accepts noreply authors, committers and the Anthropic co-author", () => {
-		const log = record("aaaaaaa", noreply, noreply, "Claude Opus 5.5 <noreply@anthropic.com>\n");
-		expect(checkCommitEmails(log)).toEqual([]);
+	it("accepts noreply authors and committers with no co-authors", () => {
+		expect(checkCommitEmails(record("aaaaaaa", noreply, noreply))).toEqual([]);
 	});
 
-	it("accepts a users.noreply.github.com co-author and multiple trailers", () => {
-		const log = record("aaaaaaa", noreply, noreply, `Pal <1234+pal@users.noreply.github.com>\x1fClaude <noreply@anthropic.com>\n`);
-		expect(checkCommitEmails(log)).toEqual([]);
+	it("accepts users.noreply.github.com co-authors, including several trailers", () => {
+		const one = record("aaaaaaa", noreply, noreply, "Pal <1234+pal@users.noreply.github.com>\n");
+		expect(checkCommitEmails(one)).toEqual([]);
+		const many = record("bbbbbbb", noreply, noreply, "Pal <1234+pal@users.noreply.github.com>\x1fOther <5678+other@users.noreply.github.com>\n");
+		expect(checkCommitEmails(many)).toEqual([]);
+	});
+
+	it("rejects co-authors without a GitHub noreply address", () => {
+		const vendor = "noreply@" + "anthropic.com";
+		const plain = "noreply@" + "github.com";
+		for (const email of [vendor, plain, "someone@" + "example.org"]) {
+			const hits = checkCommitEmails(record("aaaaaaa", noreply, noreply, `Co <${email}>\n`));
+			expect(hits.map((h) => h.pattern)).toEqual(["commit aaaaaaa: Co-Authored-By email"]);
+			expect(JSON.stringify(hits)).not.toContain(email);
+		}
 	});
 
 	it("flags a real author email, committer email and co-author email without echoing them", () => {
@@ -168,11 +179,11 @@ describe("checkCommitEmails", () => {
 	});
 
 	it("flags a Co-Authored-By value with no parseable email and compares case-insensitively", () => {
-		const none = checkCommitEmails(record("aaaaaaa", noreply, noreply, "Claude without an address\n"));
+		const none = checkCommitEmails(record("aaaaaaa", noreply, noreply, "Pal without an address\n"));
 		expect(none.map((h) => h.pattern)).toEqual(["commit aaaaaaa: Co-Authored-By email"]);
-		const mixed = record("bbbbbbb", noreply, noreply, "Claude <NoReply@Anthropic.com>\x1fPal <1+pal@Users.NoReply.GitHub.com>\n");
+		const mixed = record("bbbbbbb", noreply, noreply, "Pal <1+pal@Users.NoReply.GitHub.com>\n");
 		expect(checkCommitEmails(mixed)).toEqual([]);
-		const oneBad = record("ccccccc", noreply, noreply, "Claude <noreply@anthropic.com>\x1fNo address\n");
+		const oneBad = record("ccccccc", noreply, noreply, "Pal <1+pal@users.noreply.github.com>\x1fNo address\n");
 		expect(checkCommitEmails(oneBad)).toHaveLength(1);
 	});
 

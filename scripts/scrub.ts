@@ -40,7 +40,6 @@ const PNG_METADATA_CHUNKS = new Set(["tEXt", "iTXt", "zTXt", "eXIf"]);
 const VENDORED = new Set(["com.vaguedustin.spindle.sdPlugin/ui/sdpi-components.js"]);
 const LOCAL_FILE = ".scrub-local.txt";
 const NOREPLY = /@users\.noreply\.github\.com$/i;
-const ANTHROPIC = "noreply@anthropic.com";
 /** GitHub's web-flow committer for merges and squashes made in the web UI; accepted for committers only. */
 const GITHUB_WEB = "noreply@github.com";
 const HISTORY = "(git history)";
@@ -120,14 +119,14 @@ export function scanPng(bytes: Uint8Array): string[] {
 	return found;
 }
 
-/** True when every Co-Authored-By value carries a parseable, allowed email (case-insensitive). */
+/** True when every Co-Authored-By value carries a parseable users.noreply.github.com email (case-insensitive). */
 function trailersAllowed(trailers: string): boolean {
 	return trailers
 		.split(new RegExp(`${UNIT_SEP}|\\n`))
 		.filter((value) => value.trim() !== "")
 		.every((value) => {
 			const email = /<([^>]+)>/.exec(value)?.[1]?.trim().toLowerCase();
-			return email !== undefined && (email === ANTHROPIC || NOREPLY.test(email));
+			return email !== undefined && NOREPLY.test(email);
 		});
 }
 
@@ -143,7 +142,8 @@ export function denylistWarnings(raw: string, entries: string[]): string[] {
  * Checks the output of `git log --all` formatted as record-separator, short sha, author email,
  * committer email and Co-Authored-By trailer values (tab and unit-separator delimited).
  * Authors must be GitHub noreply addresses; committers may also be GitHub's web-flow address;
- * co-authors may also be Anthropic's. A Co-Authored-By value without a parseable email is a hit.
+ * co-authors must be GitHub noreply addresses too. A Co-Authored-By value without a parseable
+ * email, or with any other address, is a hit.
  */
 export function checkCommitEmails(log: string): Hit[] {
 	const hits: Hit[] = [];
