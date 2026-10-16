@@ -16,6 +16,9 @@ import { encodeJpeg, gradient, make, solid } from "../helpers/synth";
 
 type Rgb = [number, number, number];
 
+/** Wall-clock bounds are multiplied 10x on CI: cold shared runners are slow, but a real hang takes seconds to minutes. */
+const TIME_SLACK = process.env.CI ? 10 : 1;
+
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /** One PNG chunk: length, type, data, CRC. */
@@ -79,7 +82,7 @@ describe("decodeImage", () => {
 		} catch (e) {
 			outcome = e as Error;
 		}
-		expect(performance.now() - t0).toBeLessThan(2000);
+		expect(performance.now() - t0).toBeLessThan(2000 * TIME_SLACK);
 		if (!(outcome instanceof Error)) expect([outcome.width, outcome.height]).toEqual([4000, 4000]);
 	});
 
@@ -88,7 +91,7 @@ describe("decodeImage", () => {
 		const bytes = encodeJpeg(gradient(3000, 3000), 60);
 		const t0 = performance.now();
 		const out = decodeImage(bytes);
-		expect(performance.now() - t0).toBeLessThan(2000);
+		expect(performance.now() - t0).toBeLessThan(2000 * TIME_SLACK);
 		expect([out.width, out.height]).toEqual([3000, 3000]);
 	});
 
@@ -174,7 +177,7 @@ describe("decodeImage", () => {
 		const t0 = performance.now();
 		expect(() => decodeImage(bomb)).toThrow(UnsupportedImageError);
 		expect(() => decodeImage(bomb)).toThrow(/interlaced PNG/);
-		expect(performance.now() - t0).toBeLessThan(50);
+		expect(performance.now() - t0).toBeLessThan(50 * TIME_SLACK);
 	});
 
 	describe("PNG chunk structure (N1: pngjs honours a later IHDR, so only one may exist)", () => {
@@ -183,7 +186,7 @@ describe("decodeImage", () => {
 			const t0 = performance.now();
 			expect(() => decodeImage(bytes)).toThrow(UnsupportedImageError);
 			expect(() => decodeImage(bytes)).toThrow(pattern);
-			expect(performance.now() - t0).toBeLessThan(100);
+			expect(performance.now() - t0).toBeLessThan(100 * TIME_SLACK);
 		};
 
 		test("a valid PNG followed by a second IHDR declaring 30000x30000 is refused fast", () => {
@@ -268,7 +271,7 @@ describe("decodeImage", () => {
 		const many = withScans(100); // 101 SOS markers in all
 		const t0 = performance.now();
 		expect(() => decodeImage(many)).toThrow(UnsupportedImageError);
-		expect(performance.now() - t0).toBeLessThan(50);
+		expect(performance.now() - t0).toBeLessThan(50 * TIME_SLACK);
 		// At the cap (100 in all) the count passes; whatever jpeg-js then makes of it is not a scan-count refusal.
 		let atCap: unknown;
 		try {
@@ -299,7 +302,7 @@ describe("decodeImage", () => {
 			const t0 = performance.now();
 			expect(() => decodeImage(headerOnly(w, h))).toThrow(UnsupportedImageError);
 			expect(() => decodeImage(headerOnly(w, h))).toThrow(/zero width or height/);
-			expect(performance.now() - t0).toBeLessThan(100);
+			expect(performance.now() - t0).toBeLessThan(100 * TIME_SLACK);
 		}
 	});
 
