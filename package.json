@@ -20,7 +20,7 @@
 		"gallery:captures": "tsx scripts/compose-captures.ts"
 	},
 	"dependencies": {
-		"@elgato/streamdeck": "^3.0.2",
+		"@elgato/streamdeck": "^3.0.3",
 		"jpeg-js": "^0.4.4",
 		"pngjs": "^7.0.0"
 	},
