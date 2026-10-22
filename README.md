@@ -6,6 +6,7 @@
 ![Platforms: Windows | macOS](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-informational)
 ![Stream Deck 7.1+](https://img.shields.io/badge/Stream%20Deck-7.1%2B-informational)
 ![Home Assistant 2025.10+](https://img.shields.io/badge/Home%20Assistant-2025.10%2B-informational)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20Spindle-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/vaguedustin)
 <!-- Elgato Marketplace badge: added once the listing is live. -->
 
 Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" display for any Home Assistant `media_player`. It shows the cover art, the title and artist, and the volume. Turn the dial to set the volume, press it to skip tracks, and tap the strip to play or pause. Nothing needs to change on the Home Assistant side.
@@ -215,6 +216,10 @@ npm run validate     # streamdeck validate on the plugin folder
 `npm run screenshots` renders the gallery and the GIF in `docs/images/` with the real renderer, using the fonts installed on your machine. It skips any image listed in `docs/images/captures.json`: `npm run gallery:captures` composes those from frames recorded on a Stream Deck+ by a `SPINDLE_CAPTURE=1` build (the format is described at the top of `scripts/compose-captures.ts`). The golden-render tests use a bundled Noto Sans instead, so they give the same result on every machine.
 
 Never raise the Stream Deck SDK's log level to `trace`. At that level the SDK logs every raw message it exchanges with the Stream Deck app, including the global settings, which hold the Home Assistant token.
+
+## Support Spindle
+
+Spindle is free and always will be. If it earned a spot on your desk, you can buy me a coffee on [Ko-fi](https://ko-fi.com/vaguedustin). Bug reports and ideas are just as welcome in [Issues](https://github.com/VagueDustin/spindle-streamdeck/issues).
 
 ## Credits and license
 
