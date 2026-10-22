@@ -8,6 +8,15 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    ignore:
+      # The plugin runs on the Stream Deck Node 24 runtime (manifest Nodejs.Version),
+      # so the Node types stay on 24.x.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 7 (the Go compiler) breaks typescript-eslint and @rollup/plugin-typescript.
+      # Lift this once both support it.
+      - dependency-name: "typescript"
+        versions: [">=7"]
     groups:
       production-dependencies:
         dependency-type: "production"
