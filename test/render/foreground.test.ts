@@ -205,7 +205,7 @@ describe("renderForeground: frame flags", () => {
 describe("renderForeground: rest view", () => {
 	test("bars in the accent at x=74, base y=64, with the designed heights; halved when buffering", () => {
 		const t = 1234;
-		const bars = (svg: string) => [...svg.matchAll(new RegExp(`<rect x="([\\d.]+)" y="([\\d.]+)" width="3" height="([\\d.]+)" rx="1.5" fill="${ACCENT_CSS.replace(/[()]/g, "\\$&")}"/>`, "g"))];
+		const bars = (svg: string) => [...svg.matchAll(new RegExp(`<rect x="([\\d.]+)" y="([\\d.]+)" width="3" height="([\\d.]+)" rx="1.5" fill="${ACCENT_CSS.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"/>`, "g"))];
 		const full = bars(renderForeground(player(), ui(), ACCENT, t).svg);
 		expect(full).toHaveLength(3);
 		full.forEach((m, i) => {
