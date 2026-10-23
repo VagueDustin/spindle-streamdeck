@@ -12,32 +12,32 @@ Everything to paste into Maker Console for Spindle 1.0.0, plus the steps around 
 | Price | Free |
 | Product type | Stream Deck plugin |
 | Author (as in the manifest) | VagueDustin Enterprises. The plugin guidelines ask for the Marketplace organization name, so the Maker Console organization name must match this exactly (the GitHub account and URLs stay `VagueDustin`). |
-| Plugin UUID | `com.vaguedustin.spindle` (permanent once published; the action UUID is `com.vaguedustin.spindle.dial`) |
-| Supported devices | Stream Deck+ (dials and touch strip) |
+| Plugin UUID | `com.vaguedustin.spindle` (permanent once published). Action UUIDs: `.dial`, `.wide`, `.cover` and `.transport` under it |
+| Supported devices | Stream Deck+ (dials and touch strip) for Now Playing and Now Playing (Wide); any Stream Deck with keys for Cover and Transport |
 | Supported systems | Windows 10 and later, macOS 12 and later (macOS only once a Mac tester has passed section 10 of the hardware checklist; otherwise list Windows only) |
 | Stream Deck app | 7.1 or newer |
 | Support URL | https://github.com/VagueDustin/spindle-streamdeck/issues |
 | Privacy URL | https://github.com/VagueDustin/spindle-streamdeck/blob/main/PRIVACY.md |
 | Website / source link (optional) | https://github.com/VagueDustin/spindle-streamdeck |
 
-Keywords to work into the description (Elgato asks for the supported software and devices to be named): Stream Deck+, Home Assistant, media player, now playing, album art, volume dial, touch strip.
+Keywords to work into the description (Elgato asks for the supported software and devices to be named): Stream Deck+, Stream Deck, Home Assistant, media player, now playing, album art, volume dial, touch strip, media keys.
 
 ## Description
 
-About 940 characters (Elgato's email-route limit is 1,500, and the Maker Console form states none). It matches the README.
+About 1,200 characters (Elgato's email-route limit is 1,500, and the Maker Console form states none). It matches the README.
 
 ```text
-Spindle turns a Stream Deck+ dial into a live "now playing" display for any Home Assistant media player. The touch strip shows the cover art over a blurred backdrop, the title and artist (scrolling only when they don't fit, with real Japanese, Chinese and Korean glyphs), play bars and the volume. Turn the dial to set the volume with an instant on-strip readout, press it to switch to tracks mode and skip tracks, and tap the strip to play or pause. Nothing needs to change on the Home Assistant side: paste your Home Assistant URL and a long-lived access token, pick a media player, and you're done. Several dials can show different players over one shared connection. Spindle has no telemetry and talks only to your own Home Assistant. A dedicated non-admin Home Assistant user is recommended for the token. Requires a Stream Deck+, Stream Deck 7.1 or newer, and Home Assistant 2025.10 or newer. Not affiliated with Home Assistant or Elgato.
+Spindle turns a Stream Deck+ dial into a live "now playing" display for any Home Assistant media player. The touch strip shows the cover art over a blurred backdrop, the title and artist (scrolling only when they don't fit, with real Japanese, Chinese and Korean glyphs), play bars and the volume. Turn the dial to set the volume with an instant on-strip readout, press it to switch to tracks mode and skip tracks, and tap the strip to play or pause. Put Now Playing (Wide) on two neighbouring dials for one wide display: the left dial sets the volume, the right dial skips tracks. On any Stream Deck, the Cover key shows the album art and the Transport key gives play/pause, next, previous, mute or volume with a live icon. Nothing needs to change on the Home Assistant side: paste your Home Assistant URL and a long-lived access token, pick a media player, and you're done. Spindle has no telemetry and talks only to your own Home Assistant. A dedicated non-admin Home Assistant user is recommended for the token. The dial actions need a Stream Deck+; the keys work on any Stream Deck. Requires Stream Deck 7.1 or newer and Home Assistant 2025.10 or newer. Not affiliated with Home Assistant or Elgato.
 ```
 
 Rules for this text: English only, no Home Assistant logo or branding, no claims the README doesn't back. If the description changes, change the README to match.
 
 ## Reviewer notes
 
-Elgato's plugin guidelines ask for 2 to 30 actions. Spindle deliberately ships one purpose-built dial action for v1. Paste this into the reviewer-notes field if the form offers one, or send it if review raises the action count:
+Spindle now ships four actions (Now Playing, Now Playing (Wide), Cover and Transport), inside Elgato's 2 to 30 range, so the single-action explanation used for 1.0.0 is no longer needed. If the form offers a reviewer-notes field, this helps with testing:
 
 ```text
-Elgato's plugin guidelines ask for 2 to 30 actions. Spindle ships one action on purpose: "Now Playing" is a single purpose-built dial action for the Stream Deck+ touch strip. It carries the cover art, scrolling track info, volume and tracks mode, and every setting (Home Assistant URL, token, media player, accent) lives in that one action's Property Inspector. Splitting it into several actions would only repeat those shared settings. More actions may follow in a later version if there is a real need.
+Now Playing and Now Playing (Wide) need a Stream Deck+. Now Playing (Wide) is meant for two neighbouring dials: they pair automatically and the left dial holds the settings. Cover and Transport work on any key. All four share one Home Assistant URL and token, entered once in any action's settings.
 ```
 
 ## Release notes (1.0.0)
@@ -102,10 +102,10 @@ No Home Assistant logo, Elgato logo or other branding goes in any image. The one
 - [ ] **Album-art ownership:** the gallery images and the demo video show real album artwork as displayed by the plugin. Confirm this is acceptable under Elgato's "images must be ones you own" rule before submitting. If it is not, replace the gallery with the procedural renders from `npm run screenshots` (generated art, nothing third-party), and film the video with a track whose artwork you own or with no artwork shown.
 - [ ] Category list: Music / Audio is still offered. If it isn't, pick the nearest one and record it here.
 - [ ] Guidelines that may affect Spindle, as read on 2026-10-15 (decide each one before submitting):
-  - The plugin guidelines ask for **between 2 and 30 actions**. Spindle deliberately ships **one** purpose-built dial action (**Now Playing**) in v1, so expect to explain it (see Reviewer notes above). Check whether review enforces the range.
+  - The plugin guidelines ask for **between 2 and 30 actions**. Spindle ships four, so this is met.
   - Icon sizes (done): the category icon is 28 x 28 px (56 x 56 at high DPI), the action icon 20 x 20 (40), the key image 72 x 72 (144) and the Marketplace icon 256 and 512 px, all generated by `npm run icons` from one glyph (a thick ring, solid hub and three gaps). Re-check the numbers against today's guidelines.
   - Category and action icons must be monochrome white (`#FFFFFF`) on a transparent background, with no colour and no solid background. Spindle's are, and the glyph is not the Home Assistant logo.
-  - The category should be similar to the plugin name (it is "Spindle"), and action names should be about 30 characters or fewer ("Now Playing").
+  - The category should be similar to the plugin name (it is "Spindle"), and action names should be about 30 characters or fewer ("Now Playing", "Now Playing (Wide)", "Cover", "Transport").
 - [ ] **UUID and name**: search the Marketplace for "Spindle" before locking the UUID in with the first submission. If another plugin has that name or a close one, stop and decide on a new name before anything is uploaded. The UUID `com.vaguedustin.spindle` can't change once it is published.
 - [ ] **No Home Assistant logo**: no HA logo, mark or branding in the plugin icon, the preview images, the video or the description. The "for Home Assistant" form of the name is descriptive only, and the description ends "Not affiliated with Home Assistant or Elgato."
 - [ ] The README, `PRIVACY.md` and the support link all work from outside (open each URL in a private window once the repository is public).
