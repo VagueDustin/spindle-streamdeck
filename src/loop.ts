@@ -1,9 +1,12 @@
-// The one shared ticker: every dial is ticked each heartbeat, but at most ONE
-// setFeedback goes out per heartbeat across all dials, i.e. 10 sends/sec at 100 ms. The loop
-// only needs these four methods from a dial, so tests hand it plain fakes.
+// The one shared ticker: every surface is ticked each heartbeat, but the plugin sends at most ONE
+// image per heartbeat on average, i.e. 10 sends/sec at 100 ms. A group (the two halves of a Wide
+// pair) sends all its images in one heartbeat so they never tear, then the loop rests one heartbeat
+// per extra image. The loop only needs these four methods from a surface, so tests hand it plain fakes.
 import type { DialController } from "./dial/controller";
 
 export type LoopController = Pick<DialController, "tick" | "priority" | "frame" | "urgent">;
+/** A group's frame: one payload per sink, in sink order, or null when nothing needs sending. */
+export type GroupController = Omit<LoopController, "frame"> & { frame(t: number): Array<Record<string, string>> | null };
 /** A returned promise (setFeedback is async in the SDK) has its rejection caught by the loop. */
 export type FeedbackSink = (payload: Record<string, string>) => void | Promise<unknown>;
 
@@ -29,7 +32,7 @@ const HALF_STARVED_TICKS = 4;
 /** "Never sent": older than any real age. */
 const NEVER = -1e9;
 
-type Entry = { id: string; ctl: LoopController; sink: FeedbackSink; lastSent: number };
+type Entry = { id: string; ctl: GroupController; sinks: FeedbackSink[]; lastSent: number };
 type Candidate = { entry: Entry; rank: number; half: boolean };
 
 export class FrameLoop {
@@ -45,6 +48,8 @@ export class FrameLoop {
 	private tickNo = 0;
 	/** The previous send went to a half-rate dial, so full-rate dials go next (see `candidates`). */
 	private lastSendWasHalf = false;
+	/** Heartbeats still owed for the extra images of the last group send. */
+	private rest = 0;
 
 	constructor(opts: FrameLoopOptions = {}) {
 		this.intervalMs = opts.intervalMs ?? 100;
@@ -56,8 +61,26 @@ export class FrameLoop {
 
 	/** Adding under an existing id replaces that dial. A new dial is served on the next tick. */
 	add(id: string, ctl: LoopController, sink: FeedbackSink): void {
+		const single: GroupController = {
+			tick: (t) => ctl.tick(t),
+			urgent: () => ctl.urgent(),
+			priority: (t) => ctl.priority(t),
+			frame: (t) => {
+				const payload = ctl.frame(t);
+				return payload ? [payload] : null;
+			}
+		};
+		this.addGroup(id, single, [sink]);
+	}
+
+	/** Like `add`, for a surface that spans several sinks: each send costs one heartbeat per sink. */
+	addGroup(id: string, ctl: GroupController, sinks: FeedbackSink[]): void {
 		this.dials.delete(id);
-		this.dials.set(id, { id, ctl, sink, lastSent: NEVER });
+		this.dials.set(id, { id, ctl, sinks, lastSent: NEVER });
+	}
+
+	get size(): number {
+		return this.dials.size;
 	}
 
 	remove(id: string): void {
@@ -69,6 +92,7 @@ export class FrameLoop {
 		this.t0 = this.now();
 		this.tickNo = 0;
 		this.lastSendWasHalf = false;
+		this.rest = 0;
 		// tickNo restarts at 0, so ages measured against the old run would be hugely negative.
 		for (const e of this.dials.values()) e.lastSent = NEVER;
 		this.handle = (this.setIntervalImpl ?? setInterval)(() => this.beat(), this.intervalMs);
@@ -105,20 +129,29 @@ export class FrameLoop {
 			}
 		}
 
+		if (this.rest > 0) {
+			this.rest--;
+			return;
+		}
+
 		for (const { entry, half } of this.candidates(live, t, tickNo)) {
 			// A dial removed or replaced earlier in this beat (by another dial's tick, priority or frame) gets nothing.
 			if (this.dials.get(entry.id) !== entry) continue;
-			let payload: Record<string, string> | null;
+			let payloads: Array<Record<string, string>> | null;
 			try {
-				payload = entry.ctl.frame(t);
+				payloads = entry.ctl.frame(t);
 			} catch (err) {
 				this.onError(entry.id, err);
 				continue;
 			}
-			if (!payload) continue;
+			if (!payloads) continue;
 			entry.lastSent = tickNo;
 			this.lastSendWasHalf = half;
-			this.send(entry, payload);
+			payloads.forEach((payload, i) => {
+				const sink = entry.sinks[i];
+				if (sink) this.send(entry.id, sink, payload);
+			});
+			this.rest = Math.max(0, payloads.length - 1);
 			return; // the budget for this tick is spent
 		}
 	}
@@ -156,14 +189,14 @@ export class FrameLoop {
 	}
 
 	/** Fire and forget: a failing sink must not break the loop, and the budget is spent either way. */
-	private send(entry: Entry, payload: Record<string, string>): void {
+	private send(id: string, sink: FeedbackSink, payload: Record<string, string>): void {
 		try {
-			const result = entry.sink(payload);
+			const result = sink(payload);
 			if (result && typeof result.then === "function") {
-				result.then(undefined, (err: unknown) => this.onError(entry.id, err));
+				result.then(undefined, (err: unknown) => this.onError(id, err));
 			}
 		} catch (err) {
-			this.onError(entry.id, err);
+			this.onError(id, err);
 		}
 	}
 }

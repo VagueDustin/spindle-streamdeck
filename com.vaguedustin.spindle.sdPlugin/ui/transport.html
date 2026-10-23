@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!-- sdpi-components.js: sdpi-components v4.0.1 from https://sdpi-components.dev/releases/v4/sdpi-components.js, SHA-256 f6c0dfd2ed68e18084b9952842b86e3850cf837d674704700c2a0718e0a24f6b -->
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>Spindle Transport</title>
+	<script src="sdpi-components.js"></script>
+	<style>
+		#status {
+			color: #d8d8d8;
+			font-family: "Segoe UI", Arial, Roboto, Helvetica, sans-serif;
+			font-size: 9pt;
+			line-height: 30px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		.help {
+			display: inline-block;
+			margin-top: 4px;
+			color: #8ab4f8;
+			font-family: "Segoe UI", Arial, Roboto, Helvetica, sans-serif;
+			font-size: 9pt;
+		}
+	</style>
+</head>
+<body>
+	<sdpi-item label="Home Assistant URL">
+		<sdpi-textfield setting="haUrl" global placeholder="http://homeassistant.local:8123"></sdpi-textfield>
+	</sdpi-item>
+	<sdpi-item label="Access token">
+		<sdpi-password setting="token" global></sdpi-password>
+		<a class="help" id="token-help" href="https://github.com/VagueDustin/spindle-streamdeck#create-a-token">How to create a token</a>
+	</sdpi-item>
+	<sdpi-item label="Status">
+		<div id="status">Connecting…</div>
+	</sdpi-item>
+	<sdpi-item label="Media player">
+		<sdpi-select setting="entityId" datasource="getMediaPlayers" hot-reload show-refresh placeholder="Choose a media player"></sdpi-select>
+	</sdpi-item>
+	<sdpi-item label="Function">
+		<sdpi-select setting="function" default="playpause">
+			<option value="playpause">Play/Pause</option>
+			<option value="next">Next track</option>
+			<option value="previous">Previous track</option>
+			<option value="mute">Mute</option>
+			<option value="volume_up">Volume up</option>
+			<option value="volume_down">Volume down</option>
+		</sdpi-select>
+	</sdpi-item>
+	<sdpi-item label="Volume step">
+		<sdpi-range setting="volumeStep" min="1" max="10" step="1" default="2" showlabels></sdpi-range>
+	</sdpi-item>
+	<script>
+		const client = SDPIComponents.streamDeckClient;
+		const status = document.getElementById("status");
+
+		// The plugin pushes {event: "status", text} on every connection change and in reply to getStatus.
+		client.sendToPropertyInspector.subscribe((msg) => {
+			const payload = msg && msg.payload;
+			if (payload && payload.event === "status" && typeof payload.text === "string") {
+				status.textContent = payload.text;
+				status.title = payload.text;
+			}
+		});
+		client.send("sendToPlugin", { event: "getStatus" });
+
+		// A plain link would navigate the inspector itself; open it in the browser instead.
+		const help = document.getElementById("token-help");
+		help.addEventListener("click", (ev) => {
+			ev.preventDefault();
+			client.send("openUrl", { url: help.href });
+		});
+	</script>
+</body>
+</html>

@@ -54,11 +54,11 @@ const MUTE_FONT: FontSpec = { size: 14, weight: 700 };
 const TAKEOVER = { fallbackScrim: 0.62, barX: 12, barY: 80, barW: STRIP_W - 24, barH: 8, knobR: 6 };
 const CHEVRON = { size: 16, back: 60, forward: 140 };
 
-const WHITE = 'fill="#fff"';
-const white = (alpha: number) => `fill="#fff" fill-opacity="${alpha}"`;
-const css = (c: Rgb) => `rgb(${c[0]},${c[1]},${c[2]})`;
+export const WHITE = 'fill="#fff"';
+export const white = (alpha: number) => `fill="#fff" fill-opacity="${alpha}"`;
+export const css = (c: Rgb) => `rgb(${c[0]},${c[1]},${c[2]})`;
 /** One decimal place keeps the SVG short and the numbers stable. */
-const n = (v: number) => String(Math.round(v * 10) / 10);
+export const n = (v: number) => String(Math.round(v * 10) / 10);
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
 const SVG_OPEN = `<svg xmlns="http://www.w3.org/2000/svg" width="${STRIP_W}" height="${STRIP_H}" viewBox="0 0 ${STRIP_W} ${STRIP_H}">`;
@@ -77,25 +77,26 @@ export function escapeXml(s: string): string {
 }
 
 /** `body` must already be escaped. `y` is the line's vertical centre. */
-function text(x: number, y: number, font: FontSpec, paint: string, body: string, extra = ""): string {
+export function text(x: number, y: number, font: FontSpec, paint: string, body: string, extra = ""): string {
 	return `<text x="${n(x)}" y="${n(y + font.size * BASELINE)}" font-family="${FONT_STACK}" font-size="${font.size}" font-weight="${font.weight}" ${paint}${extra}>${body}</text>`;
 }
 
-type Box = { id: string; x: number; w: number };
-type Drawn = { svg: string; scrolls: boolean };
+export type Box = { id: string; x: number; w: number };
+export type Drawn = { svg: string; scrolls: boolean };
 
 /**
  * Text in a box: drawn plainly when the estimate fits, otherwise two copies 28 px apart
  * scroll by `offset` inside a mask the width of the box. The deck's Qt SVG
  * renderer ignores clipPath (verified on hardware; it paints its rect black), but honours a mask in <defs>.
  */
-function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string, offset: number): Drawn {
+/** `canvas` is the drawing's size, for the mask region; the strip by default. */
+export function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string, offset: number, canvas = { w: STRIP_W, h: STRIP_H }): Drawn {
 	const body = escapeXml(raw);
 	const w = estimateWidth(raw, font);
 	if (w <= box.w) return { svg: text(box.x, y, font, paint, body), scrolls: false };
 	const span = w + MARQUEE_GAP;
 	const x = box.x - (((offset % span) + span) % span);
-	const mask = `<defs><mask id="${box.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${STRIP_W}" height="${STRIP_H}"><rect x="${box.x}" y="0" width="${box.w}" height="${STRIP_H}" ${WHITE}/></mask></defs>`;
+	const mask = `<defs><mask id="${box.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${canvas.w}" height="${canvas.h}"><rect x="${box.x}" y="0" width="${box.w}" height="${canvas.h}" ${WHITE}/></mask></defs>`;
 	return {
 		svg: `${mask}<g mask="url(#${box.id})">${text(x, y, font, paint, body)}${text(x + span, y, font, paint, body)}</g>`,
 		scrolls: true
@@ -103,7 +104,7 @@ function marquee(box: Box, raw: string, y: number, font: FontSpec, paint: string
 }
 
 /** Cuts `raw` to fit `width` (by the estimate), ending in an ellipsis when cut. Not escaped. */
-function ellipsize(raw: string, width: number, font: FontSpec): string {
+export function ellipsize(raw: string, width: number, font: FontSpec): string {
 	if (estimateWidth(raw, font) <= width) return raw;
 	const chars = [...raw];
 	while (chars.length > 0 && estimateWidth(`${chars.join("").trimEnd()}…`, font) > width) chars.pop();
@@ -115,35 +116,35 @@ function ellipsize(raw: string, width: number, font: FontSpec): string {
  * . _ - / so an entity id like media_player.living_room can wrap. Whatever is left after the
  * last line break joins the last line, and any line still too wide is ellipsized.
  */
-function wrap(raw: string, font: FontSpec, maxLines: number): string[] {
+export function wrap(raw: string, font: FontSpec, maxLines: number, width = TEXT_W): string[] {
 	const lines: string[] = [];
 	let cur = "";
 	for (const piece of raw.trim().split(/(?<=[\s._/-])/)) {
 		const next = cur + piece;
-		if (cur.trim() && lines.length < maxLines - 1 && estimateWidth(next.trimEnd(), font) > TEXT_W) {
+		if (cur.trim() && lines.length < maxLines - 1 && estimateWidth(next.trimEnd(), font) > width) {
 			lines.push(cur.trimEnd());
 			cur = piece.trimStart();
 		} else cur = next;
 	}
 	lines.push(cur.trimEnd());
-	return lines.map((line) => ellipsize(line, TEXT_W, font));
+	return lines.map((line) => ellipsize(line, width, font));
 }
 
 /** Three accent bars bouncing on the base line; half height while buffering. */
-function playBars(t: number, half: boolean, accent: Rgb): string {
+export function playBars(t: number, half: boolean, accent: Rgb, x = BARS_X, base = BARS_BASE): string {
 	const fill = `fill="${css(accent)}"`;
 	let s = "";
 	for (let i = 0; i < 3; i++) {
 		let h = 3 + Math.abs(Math.sin(t * 0.006 + i * 1.9)) * 9;
 		if (half) h /= 2;
-		s += `<rect x="${n(BARS_X + i * 5)}" y="${n(BARS_BASE - h)}" width="3" height="${n(h)}" rx="1.5" ${fill}/>`;
+		s += `<rect x="${n(x + i * 5)}" y="${n(base - h)}" width="3" height="${n(h)}" rx="1.5" ${fill}/>`;
 	}
 	return s;
 }
 
-function pauseGlyph(): string {
-	const bar = (x: number) => `<rect x="${x}" y="${BARS_BASE - 10}" width="3" height="10" rx="1" ${white(0.7)}/>`;
-	return bar(BARS_X + 1) + bar(BARS_X + 7);
+export function pauseGlyph(x0 = BARS_X, base = BARS_BASE): string {
+	const bar = (x: number) => `<rect x="${x}" y="${base - 10}" width="3" height="10" rx="1" ${white(0.7)}/>`;
+	return bar(x0 + 1) + bar(x0 + 7);
 }
 
 /** The source label beside the bars, masked (not scrolled) to the strip's right margin. */
@@ -152,7 +153,7 @@ function sourceLabel(label: string): string {
 }
 
 /** Track, fill and the number (or MUTE) right-aligned at x=194. */
-function volumeRow(ui: DialUi, accent: Rgb): string {
+export function volumeRow(ui: DialUi, accent: Rgb): string {
 	if (ui.volumeDisplay === "hidden") return "";
 	const frac = clamp(ui.volume, 0, 100) / 100;
 	const bar = (w: number, paint: string) => `<rect x="${TRACK.x}" y="${TRACK.y}" width="${n(w)}" height="${TRACK.h}" rx="3" ${paint}/>`;
@@ -168,13 +169,13 @@ function volumeRow(ui: DialUi, accent: Rgb): string {
  * A double chevron about cx, pointing `dir`, on the predecessor's formula: triangle i's base is
  * at cx + dir·(0.9·i − 0.45)·size and its tip 0.7·size further on.
  */
-function chevronPair(cx: number, dir: -1 | 1, paint: string): string {
+export function chevronPair(cx: number, dir: -1 | 1, paint: string, cy = ROW_Y): string {
 	const { size } = CHEVRON;
 	const w = size * 0.7;
 	let d = "";
 	for (let i = 0; i < 2; i++) {
 		const x = cx + dir * (0.9 * i - 0.45) * size;
-		d += `M${n(x)} ${n(ROW_Y - size / 2)}L${n(x + dir * w)} ${n(ROW_Y)}L${n(x)} ${n(ROW_Y + size / 2)}Z`;
+		d += `M${n(x)} ${n(cy - size / 2)}L${n(x + dir * w)} ${n(cy)}L${n(x)} ${n(cy + size / 2)}Z`;
 	}
 	return `<path d="${d}" ${paint}/>`;
 }
@@ -198,7 +199,7 @@ const STATUS_WORDS: Record<string, string> = {
 	unknown: "Unavailable",
 	off: "Off"
 };
-const statusWord = (status: string) =>
+export const statusWord = (status: string) =>
 	STATUS_WORDS[status] ?? status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 
 type Rest = { svg: string; bars: boolean; scrolls: boolean };
@@ -219,7 +220,7 @@ function restView(p: PlayerState, ui: DialUi, accent: Rgb, t: number): Rest {
 }
 
 /** The volume takeover: the plate, labels, big number and a wide bar with a knob. */
-function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
+export function takeover(p: PlayerState, ui: DialUi, accent: Rgb): string {
 	const T = TAKEOVER;
 	let s = ui.plate
 		? `<image href="${escapeXml(ui.plate)}" x="0" y="0" width="${STRIP_W}" height="${STRIP_H}" preserveAspectRatio="none"/>`
@@ -266,10 +267,9 @@ function messageView(m: { headline: string; sub?: string }): string {
 }
 
 /** A small dark pill near the top-right, e.g. "Reconnecting…". */
-function badge(label: string): string {
+export function badge(label: string, right = STRIP_W - 4): string {
 	const font: FontSpec = { size: 11, weight: 600 };
 	const body = escapeXml(ellipsize(label, 150, font));
-	const right = STRIP_W - 4;
 	const w = Math.min(estimateWidth(label, font), 150) + 12;
 	return (
 		`<rect x="${n(right - w)}" y="4" width="${n(w)}" height="16" rx="8" fill="#000" fill-opacity="0.7"/>` +

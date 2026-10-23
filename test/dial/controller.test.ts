@@ -41,6 +41,7 @@ const settings = (over: Partial<ResolvedDialSettings> = {}): ResolvedDialSetting
 	volumeStep: 2,
 	labels: new Map(),
 	tracksMode: true,
+	tapToSkip: false,
 	...over
 });
 
@@ -628,5 +629,30 @@ describe("frames and priority", () => {
 		const svg = fgSvg(payload);
 		expect(svg).toMatch(/<image href="data:image\/png;base64,[^"]+"/);
 		expect(svg).toContain("Short");
+	});
+});
+
+describe("tap zones", () => {
+	it("are off by default: a tap at the edge still plays or pauses", () => {
+		const { c, services } = setup();
+		c.tap(5);
+		expect(services()).toEqual(["media_play_pause"]);
+	});
+
+	it.each([
+		[10, "media_previous_track"],
+		[100, "media_play_pause"],
+		[190, "media_next_track"]
+	])("when on, a tap at x=%i sends %s", (x, service) => {
+		const { c, services } = setup({ s: { tapToSkip: true } });
+		c.tap(x);
+		expect(services()).toEqual([service]);
+	});
+
+	it("alert instead of skipping when the player cannot skip", () => {
+		const { c, services, alert } = setup({ s: { tapToSkip: true }, p: { features: VOLUME_FEATURES } });
+		c.tap(190);
+		expect(services()).toEqual([]);
+		expect(alert).toHaveBeenCalledTimes(1);
 	});
 });

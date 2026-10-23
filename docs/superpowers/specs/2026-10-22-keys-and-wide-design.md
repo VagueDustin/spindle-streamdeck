@@ -62,7 +62,16 @@ only "Settings for this widget are on the left dial"; its own stored settings ar
 | Left press | Mute toggle (alert if the player can't mute) |
 | Right turn | Skip tracks (4 detents per skip, same cooldown) |
 | Right press | Play/pause |
-| Tap either half | Play/pause |
+| Tap the left third of the widget | Previous track |
+| Tap the middle third | Play/pause |
+| Tap the right third | Next track (flashes the chevron) |
+
+The SDK passes only taps (with `tapPos`) to plugins, never swipes, so tap zones stand in for swipe
+gestures. They are on by default for Wide (setting `tapToSkip`). The single dial gets the same zones
+across its 200 px as an opt-in checkbox, off by default so existing setups keep tap-anywhere play/pause.
+
+The Wide marquee runs at 40 px/s (8 px per frame at the pair's 5 fps): the dial's 24 px/s felt slow
+across 400 px.
 
 **Layout (400×100).** Thumbnail at the left, title and artist across the full width, play state and
 source label under them. Bottom row: the volume bar on the left half (above the volume dial), and
@@ -79,7 +88,8 @@ Keys are drawn as 144×144 SVG (`setImage` with an SVG data URI); the deck scale
 They redraw only on state changes, except Cover's "art + title" when the title scrolls (half rate).
 
 **Cover** (`com.vaguedustin.spindle.cover`, Keypad). Settings: player, display.
-- *Art* (default): full-bleed cover; a small pause badge when paused, accent play bars when playing.
+- *Art with play state* (default): full-bleed cover; a small pause badge when paused, accent play bars when playing.
+- *Art only*: the cover with no badge (status words like "Off" still show).
 - *Art + title*: the cover with the title on a dark band along the bottom, scrolling when too long.
 - *Text*: title and artist on an accent gradient, wrapped to fit.
 - No cover: the accent gradient. Press: play/pause.

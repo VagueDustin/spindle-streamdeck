@@ -10,13 +10,21 @@ test("manifest pins platform floors", () => {
   expect(manifest.Software.MinimumVersion).toBe("7.1");
   expect(manifest.Version).toBe(`${pkg.version}.0`);
 });
-test("single encoder action with custom layout", () => {
-  expect(manifest.Actions).toHaveLength(1);
+test("four actions: dial, wide, cover, transport", () => {
+  expect(manifest.Actions.map((a) => [a.UUID, a.Controllers])).toEqual([
+    ["com.vaguedustin.spindle.dial", ["Encoder"]],
+    ["com.vaguedustin.spindle.wide", ["Encoder"]],
+    ["com.vaguedustin.spindle.cover", ["Keypad"]],
+    ["com.vaguedustin.spindle.transport", ["Keypad"]],
+  ]);
+  expect(manifest.Actions[1].Encoder?.layout).toBe("layouts/spindle.json");
+});
+test("the dial action is unchanged, so existing profiles keep working", () => {
   const a = manifest.Actions[0];
   expect(a.UUID).toBe("com.vaguedustin.spindle.dial");
   expect(a.Controllers).toEqual(["Encoder"]);
-  expect(a.Encoder.layout).toBe("layouts/spindle.json");
-  expect(a.Encoder.TriggerDescription).toEqual({ Rotate: "Volume / Skip", Push: "Switch mode", Touch: "Play/Pause" });
+  expect(a.Encoder!.layout).toBe("layouts/spindle.json");
+  expect(a.Encoder!.TriggerDescription).toEqual({ Rotate: "Volume / Skip", Push: "Switch mode", Touch: "Play/Pause" });
 });
 test("layout: bg under fg, both full strip", () => {
   expect(layout.items).toEqual([

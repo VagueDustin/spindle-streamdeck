@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Now Playing (Wide):** put it on two neighbouring dials and they show one player across both strips. The left dial sets the volume (press to mute), the right dial skips tracks (press to play or pause). Tap the left or right end of the widget to skip back or forward, and the middle to play or pause. Both halves update together, so nothing tears at the seam.
+- **Tap zones** on the Now Playing dial too, as an opt-in setting: tap the strip's left or right edge to skip tracks. Off by default, so a tap anywhere still plays or pauses.
+- **Cover** key: the now-playing cover on any Stream Deck key, as art with a play-state badge, art only, art with the title, or title and artist on the accent colour. Press to play or pause.
+- **Transport** key: play/pause, next, previous, mute, volume up or volume down, with an icon that follows the player (pause bars while playing, a red speaker while muted, the volume under the volume keys). Hold a volume key to keep stepping.
+- All actions share one Home Assistant connection and one 10 updates per second budget. Existing Now Playing dials are unchanged.
+
 ## 1.0.0
 
 The first release of Spindle: Now Playing for Home Assistant on Stream Deck+.

@@ -1,10 +1,14 @@
 export type GlobalSettings = { haUrl?: string; token?: string };
-export type DialSettings = { entityId?: string; volumeStep?: number; sourceLabels?: string; tracksMode?: boolean };
+export type DialSettings = { entityId?: string; volumeStep?: number; sourceLabels?: string; tracksMode?: boolean; tapToSkip?: boolean };
+/** The Wide pair's settings live on its left dial; `tracksMode` does not apply. */
+export type WideSettings = Omit<DialSettings, "tracksMode">;
 export type ResolvedDialSettings = {
 	entityId: string | null;
 	volumeStep: number;
 	labels: Map<string, string>;
 	tracksMode: boolean;
+	/** Tapping the strip's left or right third skips back or forward; the middle still plays or pauses. */
+	tapToSkip: boolean;
 };
 
 const DEFAULT_VOLUME_STEP = 2;
@@ -40,17 +44,44 @@ export function normalizeHaUrl(input: string | undefined): { httpBase: string; w
 	}
 }
 
+const resolveEntity = (v: unknown): string | null => (typeof v === "string" && /^media_player\..+/.test(v) ? v : null);
+const resolveVolumeStep = (v: unknown): number =>
+	typeof v === "number" && !Number.isNaN(v) ? Math.min(MAX_VOLUME_STEP, Math.max(MIN_VOLUME_STEP, Math.round(v))) : DEFAULT_VOLUME_STEP;
+
 export function resolveDialSettings(s: DialSettings): ResolvedDialSettings {
-	const entityId = typeof s.entityId === "string" && /^media_player\..+/.test(s.entityId) ? s.entityId : null;
-	const step = typeof s.volumeStep === "number" && !Number.isNaN(s.volumeStep)
-		? Math.min(MAX_VOLUME_STEP, Math.max(MIN_VOLUME_STEP, Math.round(s.volumeStep)))
-		: DEFAULT_VOLUME_STEP;
 	return {
-		entityId,
-		volumeStep: step,
+		entityId: resolveEntity(s.entityId),
+		volumeStep: resolveVolumeStep(s.volumeStep),
 		labels: parseSourceLabels(s.sourceLabels),
-		tracksMode: s.tracksMode !== false
+		tracksMode: s.tracksMode !== false,
+		// Off by default on the dial, so existing setups keep "tap anywhere to play or pause".
+		tapToSkip: s.tapToSkip === true
 	};
+}
+
+/** The Wide pair is new, so its tap zones are on unless turned off. */
+export function resolveWideSettings(s: WideSettings): ResolvedDialSettings {
+	return { ...resolveDialSettings(s), tapToSkip: s.tapToSkip !== false };
+}
+
+export const COVER_DISPLAYS = ["art", "art-plain", "art-title", "text"] as const;
+export type CoverDisplay = (typeof COVER_DISPLAYS)[number];
+export type CoverKeySettings = { entityId?: string; display?: string };
+export type ResolvedCoverKeySettings = { entityId: string | null; volumeStep: number; labels: Map<string, string>; display: CoverDisplay };
+
+export function resolveCoverKeySettings(s: CoverKeySettings): ResolvedCoverKeySettings {
+	const display = COVER_DISPLAYS.find((d) => d === s.display) ?? "art";
+	return { entityId: resolveEntity(s.entityId), volumeStep: DEFAULT_VOLUME_STEP, labels: new Map(), display };
+}
+
+export const TRANSPORT_FUNCTIONS = ["playpause", "next", "previous", "mute", "volume_up", "volume_down"] as const;
+export type TransportFunction = (typeof TRANSPORT_FUNCTIONS)[number];
+export type TransportKeySettings = { entityId?: string; function?: string; volumeStep?: number };
+export type ResolvedTransportKeySettings = { entityId: string | null; volumeStep: number; labels: Map<string, string>; fn: TransportFunction };
+
+export function resolveTransportKeySettings(s: TransportKeySettings): ResolvedTransportKeySettings {
+	const fn = TRANSPORT_FUNCTIONS.find((f) => f === s.function) ?? "playpause";
+	return { entityId: resolveEntity(s.entityId), volumeStep: resolveVolumeStep(s.volumeStep), labels: new Map(), fn };
 }
 
 /**

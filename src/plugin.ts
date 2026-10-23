@@ -1,7 +1,10 @@
 import streamDeck from "@elgato/streamdeck";
 
 import { SpindleDial } from "./actions/spindle-dial";
+import { SpindleCover, SpindleTransport } from "./actions/spindle-keys";
+import { SpindleWide } from "./actions/spindle-wide";
 import { setConnectionLogger } from "./ha/connection";
+import { SpindleHub } from "./hub";
 import { redact } from "./log";
 import type { GlobalSettings } from "./settings";
 import { trustSystemCertificates } from "./tlsTrust";
@@ -25,8 +28,10 @@ streamDeck.logger.info(`Spindle ${__SPINDLE_VERSION__} starting`);
 const trust = trustSystemCertificates(undefined, (msg) => streamDeck.logger.warn(msg));
 streamDeck.logger.info(`OS certificate store: ${trust}`);
 
-const dial = new SpindleDial();
-streamDeck.actions.registerAction(dial);
+const hub = new SpindleHub();
+for (const a of [new SpindleDial(hub), new SpindleWide(hub), new SpindleCover(hub), new SpindleTransport(hub)]) {
+	streamDeck.actions.registerAction(a);
+}
 
 /** The newest token seen (as typed and trimmed), so these error logs can redact it. */
 let secrets: string[] = [];
@@ -44,7 +49,7 @@ streamDeck.settings.onDidReceiveGlobalSettings<GlobalSettings>((ev) => {
 	settle = setTimeout(() => {
 		// A throw inside a timer callback would end the plugin process.
 		try {
-			dial.setGlobalSettings(settings);
+			hub.setGlobalSettings(settings);
 		} catch (err) {
 			logError("Could not apply global settings", err);
 		}
@@ -58,7 +63,7 @@ streamDeck
 		// A PI change that arrived meanwhile is newer: let it win.
 		if (settle === undefined) {
 			remember(settings);
-			dial.setGlobalSettings(settings);
+			hub.setGlobalSettings(settings);
 		}
 	})
 	.catch((err: unknown) => logError("Could not load global settings", err));
