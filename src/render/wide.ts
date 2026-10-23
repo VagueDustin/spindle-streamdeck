@@ -93,14 +93,17 @@ function restView(p: PlayerState, ui: WideUi, accent: Rgb, t: number): Rest {
 
 /**
  * During the takeover the left half's text is covered, so the right half shows the track on its own:
- * a scrim over the rest view, the title and artist, and the transport row again on top.
+ * the takeover plate (opaque, so a long title crossing the seam doesn't show through), the title and
+ * artist, and the transport row again on top.
  */
 function trackPanel(p: PlayerState, ui: WideUi, accent: Rgb): string {
 	const x = STRIP_W + 12;
 	const box = (id: string) => ({ id, x, w: STRIP_W - 24 });
 	const title = p.title || p.friendlyName;
 	const artist = p.title ? (p.artist ?? "") : statusWord(p.status);
-	let s = `<rect x="${STRIP_W}" y="0" width="${STRIP_W}" height="${STRIP_H}" fill="#000" fill-opacity="0.45"/>`;
+	let s = ui.plate
+		? `<image href="${escapeXml(ui.plate)}" x="${STRIP_W}" y="0" width="${STRIP_W}" height="${STRIP_H}" preserveAspectRatio="none"/>`
+		: `<rect x="${STRIP_W}" y="0" width="${STRIP_W}" height="${STRIP_H}" fill="#000" fill-opacity="0.85"/>`;
 	s += marquee(box("ptitle"), title, 20, { size: 17, weight: 600 }, WHITE, ui.offset, CANVAS).svg;
 	if (artist) s += marquee(box("partist"), artist, 40, { size: 13, weight: 400 }, white(0.72), ui.offset, CANVAS).svg;
 	return s + transportRow(p.status === "playing" || p.status === "buffering", ui.flashDir, accent);

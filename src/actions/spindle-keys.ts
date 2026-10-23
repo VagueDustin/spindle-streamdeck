@@ -10,8 +10,10 @@ import {
 	type WillDisappearEvent
 } from "@elgato/streamdeck";
 
+import { keySlot } from "../capture";
 import { errorText, type JsonValue, type SpindleHub } from "../hub";
 import { CoverKeyController, TransportKeyController } from "../keys/controllers";
+import type { FeedbackSink } from "../loop";
 import {
 	resolveCoverKeySettings,
 	resolveTransportKeySettings,
@@ -52,7 +54,10 @@ abstract class SpindleKey<S extends CoverKeySettings | TransportKeySettings, R e
 				settings
 			);
 			this.keys.set(id, ctl);
-			this.hub.addSurface(id, ctl, (payload) => keyAction.setImage(payload.image));
+			const sink: FeedbackSink = (payload) => keyAction.setImage(payload.image);
+			const capture = this.hub.capture;
+			const at = keyAction.coordinates;
+			this.hub.addSurface(id, ctl, __SPINDLE_CAPTURE__ && capture && at ? capture.wrap(keySlot(at.row, at.column), sink) : sink);
 			this.hub.attach(id, ctl, settings.entityId);
 		});
 	}

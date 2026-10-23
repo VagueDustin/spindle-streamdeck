@@ -133,6 +133,13 @@ describe("WideController frames", () => {
 		expect(w.frame(now())).toBeNull();
 	});
 
+	it("covers the right half with the opaque plate during the takeover, so a long title does not show through", () => {
+		const { w, now } = setup({ title: "A title far too long to fit across the whole wide strip at nineteen pixels, really" });
+		w.rotateVolume(1);
+		const [left] = w.frame(now())!.map(svg);
+		expect(left).toMatch(/<image href="data:image\/png;base64,[^"]+" x="200" y="0" width="200" height="100" preserveAspectRatio="none"\/>/);
+	});
+
 	it("shows status messages across the pair", () => {
 		const { w, now } = setup();
 		w.setPlayer(null);

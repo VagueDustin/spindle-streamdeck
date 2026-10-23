@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { CaptureRecorder, captureDirFor, captureName, parseCaptureName, type CaptureFs } from "../src/capture";
+import { CaptureRecorder, captureDirFor, captureName, keySlot, parseCaptureName, type CaptureFs } from "../src/capture";
 
 /** An in-memory folder: file name -> contents. */
 class MemFs implements CaptureFs {
@@ -206,5 +206,22 @@ describe("captureDirFor", () => {
 	it("is null when the plugin folder is not inside a checkout (no package.json beside it)", () => {
 		const sys = { realpath: (p: string) => p, exists: () => false };
 		expect(captureDirFor(pluginDir, sys)).toBeNull();
+	});
+});
+
+describe("keys", () => {
+	it("get slots of their own, clear of the dials", () => {
+		expect(keySlot(0, 0)).toBe(100);
+		expect(keySlot(1, 2)).toBe(112);
+		expect(captureName(7, keySlot(0, 1))).toBe("000007-101.json");
+		expect(parseCaptureName("000007-101.json")).toEqual({ n: 7, dial: 101 });
+	});
+
+	it("record the setImage image", async () => {
+		const mem = new MemFs(DIR);
+		const rec = new CaptureRecorder({ dir: DIR, fs: mem, now: () => 5 });
+		rec.record(keySlot(0, 0), { image: "data:image/svg+xml,K" });
+		await rec.flush();
+		expect(JSON.parse(mem.files.get("000000-100.json")!)).toEqual({ t: 5, dial: 100, image: "data:image/svg+xml,K" });
 	});
 });

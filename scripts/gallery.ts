@@ -39,6 +39,12 @@ export function rasterise(bgUri: string, fgSvg: string, width = WIDTH): Rgba {
 	return { width: png.width, height: png.height, data: new Uint8Array(png.data) };
 }
 
+/** Any SVG rasterised by resvg to `width` px, with the same fonts as `rasterise`. */
+export function rasteriseSvg(svg: string, width: number): Rgba {
+	const png = PNG.sync.read(new Resvg(svg, { fitTo: { mode: "width", value: width }, font: FONT }).render().asPng());
+	return { width: png.width, height: png.height, data: new Uint8Array(png.data) };
+}
+
 /** Writes through pngjs, which emits no text or metadata chunks (the scrub checks). */
 export function writePng(name: string, img: Rgba): void {
 	const png = new PNG({ width: img.width, height: img.height });
@@ -52,7 +58,7 @@ export function writeGif(name: string, frames: Rgba[], frameMs: number): void {
 	const gif = encodeGif(frames, frameMs);
 	const file = path.join(OUT, name);
 	fs.writeFileSync(file, gif);
-	console.log(`${path.relative(process.cwd(), file)} (${WIDTH}x${HEIGHT}, ${frames.length} frames, ${Math.round(gif.length / 1024)} KB)`);
+	console.log(`${path.relative(process.cwd(), file)} (${frames[0].width}x${frames[0].height}, ${frames.length} frames, ${Math.round(gif.length / 1024)} KB)`);
 }
 
 /** 4x4 Bayer matrix: a fixed dither pattern, so unchanged pixels stay identical between frames. */

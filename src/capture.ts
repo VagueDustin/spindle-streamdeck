@@ -2,8 +2,10 @@
 // setFeedback payload it sends, so the README gallery can show real frames with real covers
 // (`npm run gallery:captures`). Normal builds have __SPINDLE_CAPTURE__ false and drop this module.
 //
-// Each sent payload becomes `capture/<n>-<dial>.json`, holding `{ t, dial, fg?, bg? }` with only
-// the keys that payload had. Nothing else is ever written: no settings, no token. Writes run on
+// Each sent payload becomes `capture/<n>-<slot>.json`, holding `{ t, dial, fg?, bg?, image? }` with
+// only the keys that payload had. The slot is the dial's column (0-3; a Wide pair records each half
+// under its own column) or, for a key, `keySlot(row, column)`: 100 + 10 x row + column. A key's
+// payload is its setImage `image`. Nothing else is ever written: no settings, no token. Writes run on
 // a promise chain, off the frame loop, and the folder keeps only the newest `keep` files.
 import fs from "node:fs";
 import path from "node:path";
@@ -18,7 +20,12 @@ const MAX_PENDING = 100;
 
 const NAME = /^(\d+)-(\d+)\.json$/;
 
-/** `000123-2.json`: the zero-padded counter, then the dial index. */
+/** A key's capture slot: 100 + 10 x row + column, so keys never collide with the dials' 0-3. */
+export function keySlot(row: number, column: number): number {
+	return 100 + row * 10 + column;
+}
+
+/** `000123-2.json`: the zero-padded counter, then the slot (a dial index, or a `keySlot`). */
 export function captureName(n: number, dial: number): string {
 	return `${String(n).padStart(6, "0")}-${dial}.json`;
 }
@@ -88,7 +95,7 @@ export type CaptureOptions = {
 	onError?: (err: unknown) => void;
 };
 
-type Entry = { t: number; dial: number; fg?: string; bg?: string };
+type Entry = { t: number; dial: number; fg?: string; bg?: string; image?: string };
 
 export class CaptureRecorder {
 	private readonly dir: string;
@@ -120,11 +127,12 @@ export class CaptureRecorder {
 		};
 	}
 
-	/** Queues one payload for writing and returns at once. Only `fg` and `bg` are kept. */
+	/** Queues one payload for writing and returns at once. Only `fg`, `bg` and `image` are kept. */
 	record(dial: number, payload: Record<string, string>): void {
 		const entry: Entry = { t: this.now(), dial };
 		if (payload.fg !== undefined) entry.fg = payload.fg;
 		if (payload.bg !== undefined) entry.bg = payload.bg;
+		if (payload.image !== undefined) entry.image = payload.image;
 		if (this.pending >= MAX_PENDING) {
 			this.report(new Error("capture is falling behind; frame dropped"));
 			return;

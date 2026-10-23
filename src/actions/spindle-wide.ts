@@ -13,6 +13,7 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 
 import { errorText, isGetEvent, type JsonValue, type SpindleHub } from "../hub";
+import type { FeedbackSink } from "../loop";
 import { LAYOUT_PATH } from "../render/geometry";
 import { resolveWideSettings, type WideSettings } from "../settings";
 import { WideController } from "../wide/controller";
@@ -132,7 +133,7 @@ export class SpindleWide extends SingletonAction<WideSettings> {
 			const s = this.slots.get(id);
 			if (!s) continue;
 			this.unpaired.add(id);
-			this.hub.addSurface(id, new UnpairedWide(Date.now() + UNPAIRED_GRACE_MS), (payload) => s.action.setFeedback(payload));
+			this.hub.addSurface(id, new UnpairedWide(Date.now() + UNPAIRED_GRACE_MS), this.sink(s));
 		}
 
 		for (const [key] of this.pairs) {
@@ -166,9 +167,16 @@ export class SpindleWide extends SingletonAction<WideSettings> {
 			},
 			settings
 		);
-		this.hub.addGroup(key, ctl, [(payload) => left.action.setFeedback(payload), (payload) => right.action.setFeedback(payload)]);
+		this.hub.addGroup(key, ctl, [this.sink(left), this.sink(right)]);
 		this.hub.attach(key, ctl, settings.entityId, pair.left.id);
 		return ctl;
+	}
+
+	/** The half's setFeedback, recorded under its column in a capture build. */
+	private sink(s: Slot): FeedbackSink {
+		const sink: FeedbackSink = (payload) => s.action.setFeedback(payload);
+		const capture = this.hub.capture;
+		return __SPINDLE_CAPTURE__ && capture ? capture.wrap(s.slot.column, sink) : sink;
 	}
 
 	private find(id: string): { key: string; ctl: WideController; side: "left" | "right" } | null {
