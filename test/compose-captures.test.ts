@@ -163,13 +163,14 @@ describe("Wide and key outputs", () => {
 		});
 		expect(m.wide).toEqual({ wide: "c/000001-0.json", "wide-takeover": "c/000002-0.json" });
 		expect(m.wideGif).toEqual({ from: "c/000003-0.json", to: "c/000009-0.json", fps: 5 });
-		expect(m.keys).toEqual(["c/000010-100.json", "c/000011-101.json"]);
+		expect(m.keys).toEqual({ keys: ["c/000010-100.json", "c/000011-101.json"] });
 		expect(m.stills).toEqual({});
 	});
 
 	it("rejects malformed entries", () => {
 		expect(() => parseManifest({ wide: { frame: "a.json", marketplace: true } })).toThrow(/marketplace/);
 		expect(() => parseManifest({ keys: { frames: [] } })).toThrow(/keys/);
+		expect(parseManifest({ "transport-keys": { frames: ["c/000012-111.json"] } }).keys).toEqual({ "transport-keys": ["c/000012-111.json"] });
 		expect(() => parseManifest({ "wide-gif": { from: "a.json", to: "b.json", fps: 99 } })).toThrow(/fps/);
 	});
 

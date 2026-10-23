@@ -48,6 +48,12 @@ The Cover key's display options, captured from my deck (each key drawn at 144×1
 
 ![Five Cover keys showing the OneRepublic Give Me Something cover: with accent play bars, with a pause badge, with no badge, with the title on a dark band, and as the title and artist in text on the accent colour](docs/images/keys.png)
 
+### Transport key
+
+Every Transport function, captured from my deck. From the left: play/pause while playing and while paused, next track, previous track, mute off and on, and volume up and down with the current volume in the cover's accent colour.
+
+![Eight Transport keys: pause bars, a play triangle, next and previous track, a white speaker with sound waves, a red speaker with a cross, and speakers with plus and minus over the volumes 31 and 27](docs/images/transport-keys.png)
+
 ## Features
 
 - Works with **any** Home Assistant `media_player`, using only a URL and a long-lived access token. No scripts, webhooks or add-ons on the Home Assistant side.

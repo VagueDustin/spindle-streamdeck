@@ -10,5 +10,6 @@
 	"wide": { "frame": "captures-archive/run4/001154-0.json" },
 	"wide-takeover": { "frame": "captures-archive/run4/001220-0.json" },
 	"wide-gif": { "from": "captures-archive/run4/001120-0.json", "to": "captures-archive/run4/001240-0.json", "fps": 5 },
-	"keys": { "frames": ["captures-archive/run4/001339-110.json", "captures-archive/run4/001754-110.json", "captures-archive/run4/001478-110.json", "captures-archive/run4/001519-110.json", "captures-archive/run4/001704-110.json"] }
+	"keys": { "frames": ["captures-archive/run4/001339-110.json", "captures-archive/run4/001754-110.json", "captures-archive/run4/001478-110.json", "captures-archive/run4/001519-110.json", "captures-archive/run4/001704-110.json"] },
+	"transport-keys": { "frames": ["captures-archive/run4/004835-111.json", "captures-archive/run4/004831-111.json", "captures-archive/run4/004864-111.json", "captures-archive/run4/004898-111.json", "captures-archive/run4/004928-111.json", "captures-archive/run4/004939-111.json", "captures-archive/run4/004985-111.json", "captures-archive/run4/005018-111.json"] }
 }

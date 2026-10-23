@@ -31,8 +31,8 @@
 //   dial one column to its right, as it was at the same moment (both halves go out in the same
 //   heartbeat). Written 1200x300 to docs/images/<name>.png.
 // - "wide-gif": docs/images/wide.gif, both halves sampled together, from and to on the left dial.
-// - "keys": docs/images/keys.png, the listed key captures (slot 100 + 10 x row + column, see
-//   src/capture.ts) side by side, each at 216x216 (1.5x), in the listed order.
+// - Key rows, "keys" and "transport-keys": docs/images/<name>.png, the listed key captures (slot
+//   100 + 10 x row + column, see src/capture.ts) side by side, each at 216x216 (1.5x), in the listed order.
 // - An image the manifest leaves out is left untouched (and `npm run screenshots` skips the ones it
 //   lists, so it never overwrites a capture with a demo render).
 //
@@ -51,6 +51,7 @@ export const MANIFEST = path.join(OUT, "captures.json");
 const ROOT = path.resolve(import.meta.dirname, "..");
 const STILLS = new Set(["rest", "paused", "takeover", "tracks", "cjk", "no-art", "hero"]);
 const WIDE_STILLS = new Set(["wide", "wide-takeover"]);
+const KEY_ROWS = new Set(["keys", "transport-keys"]);
 /** Keys in keys.png: drawn at 144x144, shown at 1.5x, with a gap and margin between them. */
 const KEY_SHOWN = 216;
 const KEY_GAP = 24;
@@ -81,7 +82,8 @@ export type Manifest = {
 	/** Wide stills by name: the left half's capture. */
 	wide?: Record<string, string>;
 	wideGif?: Sequence;
-	keys?: string[];
+	/** Key rows by name: the key captures, in order. */
+	keys?: Record<string, string[]>;
 };
 
 /** The SVG inside the controller's `data:image/svg+xml,<percent-encoded>` fg. */
@@ -181,13 +183,13 @@ export function parseManifest(json: unknown): Manifest {
 		} else if (WIDE_STILLS.has(name)) {
 			checkKeys(name, entry, ["frame"]);
 			(out.wide ??= {})[name] = str(`${name}.frame`, entry.frame);
-		} else if (name === "keys") {
+		} else if (KEY_ROWS.has(name)) {
 			checkKeys(name, entry, ["frames"]);
 			const frames = entry.frames;
-			if (!Array.isArray(frames) || frames.length === 0) throw new Error("keys.frames must be a non-empty list of capture file paths");
-			out.keys = frames.map((f, i) => str(`keys.frames[${i}]`, f));
+			if (!Array.isArray(frames) || frames.length === 0) throw new Error(`${name}.frames must be a non-empty list of capture file paths`);
+			(out.keys ??= {})[name] = frames.map((f, i) => str(`${name}.frames[${i}]`, f));
 		} else {
-			const known = [...STILLS, ...WIDE_STILLS, "gif", "wide-gif", "keys"];
+			const known = [...STILLS, ...WIDE_STILLS, "gif", "wide-gif", ...KEY_ROWS];
 			if (!STILLS.has(name)) throw new Error(`unknown output name "${name}"; use one of ${known.join(", ")}`);
 			checkKeys(name, entry, ["frame", "marketplace"]);
 			out.stills[name] = str(`${name}.frame`, entry.frame);
@@ -371,7 +373,7 @@ function main(): number {
 		});
 		writeGif("wide.gif", frames, Math.round(1000 / fps));
 	}
-	if (manifest.keys) writePng("keys.png", keysRow(manifest.keys));
+	for (const [name, refs] of Object.entries(manifest.keys ?? {})) writePng(`${name}.png`, keysRow(refs));
 	return 0;
 }
 
