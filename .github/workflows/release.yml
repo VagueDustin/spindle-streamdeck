@@ -42,7 +42,8 @@ jobs:
       # The locked @elgato/cli devDependency, never a fresh download from npm.
       - run: npm run validate -- --no-update-check
       - run: npx --no-install streamdeck pack com.vaguedustin.spindle.sdPlugin --output out --force --no-update-check
-      - name: Name the asset Spindle.streamDeckPlugin
+      # Versioned, so a downloaded copy says which release it is (tag v1.2.3 ships Spindle-1.2.3.streamDeckPlugin).
+      - name: Name the asset Spindle-<version>.streamDeckPlugin
         run: |
           shopt -s nullglob
           packed=(out/*.streamDeckPlugin)
@@ -51,8 +52,9 @@ jobs:
             ls -la out >&2
             exit 1
           fi
-          if [ "${packed[0]}" != "out/Spindle.streamDeckPlugin" ]; then
-            mv "${packed[0]}" out/Spindle.streamDeckPlugin
+          asset="out/Spindle-${GITHUB_REF_NAME#v}.streamDeckPlugin"
+          if [ "${packed[0]}" != "$asset" ]; then
+            mv "${packed[0]}" "$asset"
           fi
           ls -la out
       - name: Extract release notes from CHANGELOG.md
@@ -81,7 +83,7 @@ jobs:
         with:
           name: release
           path: |
-            out/Spindle.streamDeckPlugin
+            out/Spindle-*.streamDeckPlugin
             out/release-notes.md
           if-no-files-found: error
           retention-days: 1
@@ -99,5 +101,5 @@ jobs:
           path: out
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          files: out/Spindle.streamDeckPlugin
+          files: out/Spindle-*.streamDeckPlugin
           body_path: out/release-notes.md

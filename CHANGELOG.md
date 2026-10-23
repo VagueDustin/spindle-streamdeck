@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The release download is named after its version, for example `Spindle-1.2.0.streamDeckPlugin`, so a downloaded copy says which release it is.
+
 ## 1.1.0
 
 Spindle grows from one dial action to four.
