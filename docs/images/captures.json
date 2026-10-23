@@ -6,5 +6,9 @@
 	"paused": { "frame": "captures-archive/run2/000689-0.json", "marketplace": "Pause / play" },
 	"cjk": { "frame": "captures-archive/run1/001600-0.json", "marketplace": "Any language" },
 	"no-art": { "frame": "captures-archive/run1/000000-0.json" },
-	"gif": { "from": "captures-archive/run2/000600-0.json", "to": "captures-archive/run2/000666-0.json", "fps": 9.09 }
+	"gif": { "from": "captures-archive/run2/000600-0.json", "to": "captures-archive/run2/000666-0.json", "fps": 9.09 },
+	"wide": { "frame": "captures-archive/run4/001154-0.json" },
+	"wide-takeover": { "frame": "captures-archive/run4/001220-0.json" },
+	"wide-gif": { "from": "captures-archive/run4/001120-0.json", "to": "captures-archive/run4/001240-0.json", "fps": 5 },
+	"keys": { "frames": ["captures-archive/run4/001339-110.json", "captures-archive/run4/001754-110.json", "captures-archive/run4/001478-110.json", "captures-archive/run4/001519-110.json", "captures-archive/run4/001704-110.json"] }
 }

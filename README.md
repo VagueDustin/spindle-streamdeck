@@ -32,6 +32,22 @@ These are real frames captured from my Stream Deck+: exactly what the plugin sen
 
 ![The title WE ARE EMPIRE scrolling, then a dial turn raising the volume in the full-strip takeover, which fades back to the scrolling title](docs/images/spindle.gif)
 
+### Now Playing (Wide)
+
+Two dials as one display, also captured from my deck: each half is the frame its dial was sent, placed side by side at 3× (1200×300).
+
+![Now Playing (Wide) across two strips: the cover thumbnail, the title Give Me Something (for Arknights Endfield) running across both halves, OneRepublic, play bars and the Streaming source label, with the volume bar above the left dial and back, pause and forward glyphs above the right dial](docs/images/wide.png)
+
+![The Wide volume takeover: VOLUME, a large 27 and a wide bar on the left half, while the right half keeps the track title, OneRepublic and the transport glyphs](docs/images/wide-takeover.png)
+
+![The long title scrolling across both strips without a break at the seam, then a turn of the left dial bringing up the volume takeover on the left half, which fades back](docs/images/wide.gif)
+
+### Cover key
+
+The Cover key's display options, captured from my deck (each key drawn at 144×144, shown here at 1.5×). From the left: cover art with play state while playing, the same while paused, cover art only, cover art and title, and title and artist.
+
+![Five Cover keys showing the OneRepublic Give Me Something cover: with accent play bars, with a pause badge, with no badge, with the title on a dark band, and as the title and artist in text on the accent colour](docs/images/keys.png)
+
 ## Features
 
 - Works with **any** Home Assistant `media_player`, using only a URL and a long-lived access token. No scripts, webhooks or add-ons on the Home Assistant side.
