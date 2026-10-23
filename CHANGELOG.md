@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
+
+Spindle grows from one dial action to four.
 
 - **Now Playing (Wide):** put it on two neighbouring dials and they show one player across both strips. The left dial sets the volume (press to mute), the right dial skips tracks (press to play or pause). Tap the left or right end of the widget to skip back or forward, and the middle to play or pause. Both halves update together, so nothing tears at the seam.
 - **Tap zones** on the Now Playing dial too, as an opt-in setting: tap the strip's left or right edge to skip tracks. Off by default, so a tap anywhere still plays or pauses.

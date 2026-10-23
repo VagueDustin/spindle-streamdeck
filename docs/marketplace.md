@@ -1,6 +1,6 @@
 # Elgato Marketplace submission sheet
 
-Everything to paste into Maker Console for Spindle 1.0.0, plus the steps around it. Work through the checklist at the bottom in order. The requirements below were read from the Elgato docs on 2026-10-15, and Elgato changes them, so tick "check today" before submitting.
+Everything to paste into Maker Console for Spindle 1.1.0, plus the steps around it. Work through the checklist at the bottom in order. The requirements below were read from the Elgato docs on 2026-10-15, and Elgato changes them, so tick "check today" before submitting.
 
 ## Listing
 
@@ -40,9 +40,9 @@ Spindle now ships four actions (Now Playing, Now Playing (Wide), Cover and Trans
 Now Playing and Now Playing (Wide) need a Stream Deck+. Now Playing (Wide) is meant for two neighbouring dials: they pair automatically and the left dial holds the settings. Cover and Transport work on any key. All four share one Home Assistant URL and token, entered once in any action's settings.
 ```
 
-## Release notes (1.0.0)
+## Release notes (1.1.0)
 
-Paste the 1.0.0 section of `CHANGELOG.md`.
+Paste the 1.1.0 section of `CHANGELOG.md`.
 
 ## Images
 
