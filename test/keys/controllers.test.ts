@@ -17,7 +17,7 @@ const player = (over: Partial<PlayerState> = {}): PlayerState => ({
 	artist: "Band",
 	volume: 40,
 	muted: false,
-	features: Feature.VOLUME_SET | Feature.VOLUME_MUTE | Feature.NEXT_TRACK,
+	features: Feature.PLAY | Feature.PAUSE | Feature.VOLUME_SET | Feature.VOLUME_MUTE | Feature.NEXT_TRACK,
 	...over
 });
 
@@ -85,6 +85,20 @@ describe("Transport key", () => {
 		k.press();
 		expect(call).not.toHaveBeenCalled();
 		expect(alert).toHaveBeenCalledTimes(1);
+	});
+
+	it("dims play/pause and alerts for a player that can neither play nor pause", () => {
+		const { k, call, alert, now } = transport("playpause", { features: Feature.VOLUME_SET });
+		expect(image(k.frame(now()))).toContain('fill-opacity="0.3"');
+		k.press();
+		expect(call).not.toHaveBeenCalled();
+		expect(alert).toHaveBeenCalledTimes(1);
+	});
+
+	it("still sends play/pause to a player that is off, to try to wake it", () => {
+		const { k, call } = transport("playpause", { status: "off", features: 0 });
+		k.press();
+		expect(call).toHaveBeenCalledWith("media_play_pause", undefined);
 	});
 
 	it("shows play while paused and pause bars while playing", () => {

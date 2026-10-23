@@ -1,5 +1,6 @@
 // A Wide dial with no Wide neighbour: after a short grace period (its partner's willAppear may still be
-// on the way) it shows one static message, then sends nothing more.
+// on the way) it shows one static message, then sends nothing more. It is also a hub client with no
+// entity, so the connection stays open for its settings, which is why it takes (and ignores) binding updates.
 import { FALLBACK_ACCENT } from "../art/accent";
 import { svgUri, type Priority } from "../dial/controller";
 import { buildBackdrop } from "../render/backdrop";
@@ -26,6 +27,12 @@ export class UnpairedWide {
 	private sent = false;
 
 	constructor(private readonly showAt: number) {}
+
+	// Binding updates: the message does not depend on the connection or a player.
+	setConnStatus(): void {}
+	setPlayer(): void {}
+	setCover(): void {}
+	readonly coverKey = null;
 
 	tick(): void {}
 

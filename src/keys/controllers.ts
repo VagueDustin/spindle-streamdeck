@@ -154,10 +154,11 @@ export class TransportKeyController extends KeySurface {
 		const p = this.session.inputPlayer();
 		if (!p) return;
 		const now = this.deps.now();
-		// Like the dial's tap, play/pause still goes out to a player that is off: it may wake it.
-		if (this.fn === "playpause") return this.session.send("media_play_pause");
+		// Like the dial's tap, play/pause still goes out to a player that is off, whatever it reports: it may wake it.
+		if (this.fn === "playpause" && p.status === "off") return this.session.send("media_play_pause");
 		if (p.status === "off") return;
 		if (!this.supported()) return this.session.alert();
+		if (this.fn === "playpause") return this.session.send("media_play_pause");
 		switch (this.fn) {
 			case "next":
 				return this.session.send("media_next_track");
@@ -214,7 +215,7 @@ export class TransportKeyController extends KeySurface {
 		const s = this.session;
 		switch (this.fn) {
 			case "playpause":
-				return true;
+				return s.feature(Feature.PLAY) || s.feature(Feature.PAUSE);
 			case "next":
 				return s.feature(Feature.NEXT_TRACK);
 			case "previous":

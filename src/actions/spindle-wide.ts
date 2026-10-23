@@ -133,7 +133,11 @@ export class SpindleWide extends SingletonAction<WideSettings> {
 			const s = this.slots.get(id);
 			if (!s) continue;
 			this.unpaired.add(id);
-			this.hub.addSurface(id, new UnpairedWide(Date.now() + UNPAIRED_GRACE_MS), this.sink(s));
+			const lonely = new UnpairedWide(Date.now() + UNPAIRED_GRACE_MS);
+			this.hub.addSurface(id, lonely, this.sink(s));
+			// A client too, with no entity: the hub only connects while it has a client, and the first
+			// Wide dial's settings need the connection (status line, player picker) before its partner exists.
+			this.hub.attach(id, lonely, null);
 		}
 
 		for (const [key] of this.pairs) {
@@ -144,6 +148,7 @@ export class SpindleWide extends SingletonAction<WideSettings> {
 		}
 		for (const id of this.unpaired) {
 			if (lone.has(id)) continue;
+			this.hub.detach(id);
 			this.hub.removeSurface(id);
 			this.unpaired.delete(id);
 		}
