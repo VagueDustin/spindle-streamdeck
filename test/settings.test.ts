@@ -1,4 +1,4 @@
-import { mapSource, normalizeHaUrl, parseSourceLabels, resolveDialSettings } from "../src/settings";
+import { mapSource, normalizeHaUrl, parseSourceLabels, resolveDialSettings, resolveWideSettings } from "../src/settings";
 
 test.each([
 	["http://homeassistant.local:8123", "http://homeassistant.local:8123", "ws://homeassistant.local:8123/api/websocket"],
@@ -75,4 +75,11 @@ test("parseSourceLabels returns an empty map for any non-string (a crafted share
 test("mapSource trims the source before lookup", () => {
 	const m = parseSourceLabels("line in=Turntable");
 	expect(mapSource(m, "  Line In ", undefined)).toBe("Turntable");
+});
+
+test("tap zones: off by default on the dial, on by default on the Wide pair", () => {
+	expect(resolveDialSettings({}).tapToSkip).toBe(false);
+	expect(resolveDialSettings({ tapToSkip: true }).tapToSkip).toBe(true);
+	expect(resolveWideSettings({}).tapToSkip).toBe(true);
+	expect(resolveWideSettings({ tapToSkip: false }).tapToSkip).toBe(false);
 });

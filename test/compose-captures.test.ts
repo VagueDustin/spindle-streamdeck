@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
-import { composeMarketplace, parseManifest, sampleSequence, shownAt, svgFromUri, type CaptureFrame } from "../scripts/compose-captures";
+import { composeMarketplace, parseManifest, sampleSequence, shownAt, shownAtTime, svgFromUri, type CaptureFrame } from "../scripts/compose-captures";
 
 const f = (n: number, t: number, keys: { fg?: string; bg?: string }): CaptureFrame => ({ n, dial: 0, t, ...keys });
 
@@ -150,5 +150,37 @@ describe("composeMarketplace", () => {
 		};
 		expect(lit(plain)).toBe(0);
 		expect(lit(captioned)).toBeGreaterThan(50);
+	});
+});
+
+describe("Wide and key outputs", () => {
+	it("parses wide stills, the wide GIF and the keys row", () => {
+		const m = parseManifest({
+			wide: { frame: "c/000001-0.json" },
+			"wide-takeover": { frame: "c/000002-0.json" },
+			"wide-gif": { from: "c/000003-0.json", to: "c/000009-0.json", fps: 5 },
+			keys: { frames: ["c/000010-100.json", "c/000011-101.json"] }
+		});
+		expect(m.wide).toEqual({ wide: "c/000001-0.json", "wide-takeover": "c/000002-0.json" });
+		expect(m.wideGif).toEqual({ from: "c/000003-0.json", to: "c/000009-0.json", fps: 5 });
+		expect(m.keys).toEqual({ keys: ["c/000010-100.json", "c/000011-101.json"] });
+		expect(m.stills).toEqual({});
+	});
+
+	it("rejects malformed entries", () => {
+		expect(() => parseManifest({ wide: { frame: "a.json", marketplace: true } })).toThrow(/marketplace/);
+		expect(() => parseManifest({ keys: { frames: [] } })).toThrow(/keys/);
+		expect(parseManifest({ "transport-keys": { frames: ["c/000012-111.json"] } }).keys).toEqual({ "transport-keys": ["c/000012-111.json"] });
+		expect(() => parseManifest({ "wide-gif": { from: "a.json", to: "b.json", fps: 99 } })).toThrow(/fps/);
+	});
+
+	it("finds what the other half showed at the same moment", () => {
+		const right: CaptureFrame[] = [
+			{ n: 1, dial: 1, t: 100, fg: "f1", bg: "b1" },
+			{ n: 3, dial: 1, t: 300, fg: "f3" }
+		];
+		expect(shownAtTime(right, 250)).toEqual({ fg: "f1", bg: "b1" });
+		expect(shownAtTime(right, 300)).toEqual({ fg: "f3", bg: "b1" });
+		expect(() => shownAtTime(right, 50)).toThrow(/nothing was sent/);
 	});
 });

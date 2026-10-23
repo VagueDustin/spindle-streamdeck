@@ -484,3 +484,62 @@ describe("FrameLoop fault isolation", () => {
 		expect(() => h.step()).not.toThrow();
 	});
 });
+
+describe("groups (the Wide pair)", () => {
+	/** A two-sink group: both payloads come from one frame call. */
+	class FakeGroup {
+		pri: Pri = "full";
+		frames = 0;
+		constructor(readonly id: string) {}
+		tick(): void {}
+		urgent(): boolean {
+			return this.frames === 0;
+		}
+		priority(): Pri {
+			return this.pri;
+		}
+		frame(): Array<Record<string, string>> | null {
+			if (this.pri === "none") return null;
+			this.frames++;
+			return [{ fg: `${this.id}L` }, { fg: `${this.id}R` }];
+		}
+	}
+
+	it("sends both halves in the same heartbeat, then rests one heartbeat", () => {
+		const h = harness();
+		const g = new FakeGroup("w");
+		h.loop.addGroup("w", g, [h.sinkFor("w"), h.sinkFor("w")]);
+		h.loop.start();
+		expect(h.step()).toEqual(["w:wL", "w:wR"]);
+		expect(h.step()).toEqual([]);
+		expect(h.step()).toEqual(["w:wL", "w:wR"]);
+	});
+
+	it("keeps the plugin at 10 images per second with a pair and a key both animating", () => {
+		const h = harness();
+		const g = new FakeGroup("w");
+		const key = new FakeCtl("k");
+		h.loop.addGroup("w", g, [h.sinkFor("w"), h.sinkFor("w")]);
+		h.add(key);
+		h.loop.start();
+		const sends = run(h, 20).flat();
+		expect(sends.length).toBeLessThanOrEqual(20);
+		expect(sends.some((s) => s.startsWith("k:"))).toBe(true);
+		expect(sends.some((s) => s.startsWith("w:"))).toBe(true);
+	});
+
+	it("still ticks every surface during a rest beat", () => {
+		const h = harness();
+		const g = new FakeGroup("w");
+		const other = new FakeCtl("d");
+		other.pri = "none";
+		other.isUrgent = false;
+		h.loop.addGroup("w", g, [h.sinkFor("w"), h.sinkFor("w")]);
+		h.add(other);
+		h.loop.start();
+		h.step();
+		h.step();
+		expect(other.ticks).toHaveLength(2);
+		expect(h.loop.size).toBe(2);
+	});
+});

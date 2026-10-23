@@ -1,6 +1,6 @@
 {
 	"Name": "Spindle",
-	"Version": "1.0.0.0",
+	"Version": "1.1.0.0",
 	"Author": "VagueDustin Enterprises",
 	"Actions": [
 		{
@@ -25,12 +25,65 @@
 					"Image": "imgs/actions/dial/key"
 				}
 			]
+		},
+		{
+			"Name": "Now Playing (Wide)",
+			"UUID": "com.vaguedustin.spindle.wide",
+			"Icon": "imgs/actions/wide/icon",
+			"Tooltip": "Put this on two neighbouring dials: one now-playing display across both strips. Left dial: volume. Right dial: tracks.",
+			"PropertyInspectorPath": "ui/wide.html",
+			"Controllers": [
+				"Encoder"
+			],
+			"Encoder": {
+				"layout": "layouts/spindle.json",
+				"TriggerDescription": {
+					"Rotate": "Volume (left) / Skip (right)",
+					"Push": "Mute (left) / Play/Pause (right)",
+					"Touch": "Play/Pause"
+				}
+			},
+			"States": [
+				{
+					"Image": "imgs/actions/wide/key"
+				}
+			]
+		},
+		{
+			"Name": "Cover",
+			"UUID": "com.vaguedustin.spindle.cover",
+			"Icon": "imgs/actions/cover/icon",
+			"Tooltip": "The now-playing cover art from a Home Assistant media player. Press to play or pause.",
+			"PropertyInspectorPath": "ui/cover.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/cover/key"
+				}
+			]
+		},
+		{
+			"Name": "Transport",
+			"UUID": "com.vaguedustin.spindle.transport",
+			"Icon": "imgs/actions/transport/icon",
+			"Tooltip": "Play/pause, next, previous, mute or volume for a Home Assistant media player, with a live icon.",
+			"PropertyInspectorPath": "ui/transport.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/transport/key"
+				}
+			]
 		}
 	],
 	"Category": "Spindle",
 	"CategoryIcon": "imgs/plugin/category-icon",
 	"CodePath": "bin/plugin.js",
-	"Description": "Now Playing for Home Assistant: cover art, scrolling track info and volume on your Stream Deck+ dial.",
+	"Description": "Now Playing for Home Assistant: cover art, scrolling track info and volume on your Stream Deck+ dials, and cover and transport keys for any Stream Deck.",
 	"Icon": "imgs/plugin/marketplace",
 	"SDKVersion": 3,
 	"Software": {

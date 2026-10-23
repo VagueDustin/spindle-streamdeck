@@ -47,6 +47,9 @@
 	<sdpi-item label="Tracks mode">
 		<sdpi-checkbox setting="tracksMode" label="Press switches to track skipping" default="true"></sdpi-checkbox>
 	</sdpi-item>
+	<sdpi-item label="Tap zones">
+		<sdpi-checkbox setting="tapToSkip" label="Tap the left or right edge to skip tracks" default="false"></sdpi-checkbox>
+	</sdpi-item>
 	<script>
 		const client = SDPIComponents.streamDeckClient;
 		const status = document.getElementById("status");

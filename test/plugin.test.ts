@@ -25,11 +25,14 @@ const trust = vi.hoisted(() => vi.fn(() => "trusted"));
 
 vi.mock("@elgato/streamdeck", () => ({ default: sd.streamDeck }));
 vi.mock("../src/tlsTrust", async (importOriginal) => ({ ...(await importOriginal<typeof import("../src/tlsTrust")>()), trustSystemCertificates: trust }));
-vi.mock("../src/actions/spindle-dial", () => ({
-	SpindleDial: class {
+vi.mock("../src/hub", () => ({
+	SpindleHub: class {
 		setGlobalSettings = sd.setGlobalSettings;
 	}
 }));
+vi.mock("../src/actions/spindle-dial", () => ({ SpindleDial: class {} }));
+vi.mock("../src/actions/spindle-wide", () => ({ SpindleWide: class {} }));
+vi.mock("../src/actions/spindle-keys", () => ({ SpindleCover: class {}, SpindleTransport: class {} }));
 
 const flush = () => new Promise<void>((r) => setImmediate(r));
 const logged = () => sd.streamDeck.logger.error.mock.calls.map(([m]) => String(m));
