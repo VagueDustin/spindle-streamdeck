@@ -93,7 +93,7 @@ You need the Stream Deck app 7.1 or newer and Home Assistant 2025.10 or newer. O
 
 ### Install and connect
 
-2. Install Spindle from the Elgato Marketplace, or download `Spindle-<version>.streamDeckPlugin` (for example `Spindle-1.1.0.streamDeckPlugin`) from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it.
+2. Install Spindle from the Elgato Marketplace, or download the `.streamDeckPlugin` file from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it. Releases after 1.1.0 name it after their version, such as `Spindle-1.2.0.streamDeckPlugin`; 1.1.0 and earlier call it `Spindle.streamDeckPlugin`.
 3. In the Stream Deck app, open the **Spindle** category and drag an action onto your deck: **Now Playing** onto a dial, **Now Playing (Wide)** onto two neighbouring dials, or **Cover** or **Transport** onto a key. [Actions](#actions) describes each one.
 
    The Stream Deck app lists key actions under **Keys** and dial actions under **Dials**:
