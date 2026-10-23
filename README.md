@@ -96,7 +96,9 @@ You need the Stream Deck app 7.1 or newer and Home Assistant 2025.10 or newer. O
 2. Install Spindle from the Elgato Marketplace, or download `Spindle.streamDeckPlugin` from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it.
 3. In the Stream Deck app, open the **Spindle** category and drag an action onto your deck: **Now Playing** onto a dial, **Now Playing (Wide)** onto two neighbouring dials, or **Cover** or **Transport** onto a key. [Actions](#actions) describes each one.
 
-   <img src="docs/images/setup-action.png" width="300" alt="Spindle → Now Playing in the Stream Deck action list">
+   The Stream Deck app lists key actions under **Keys** and dial actions under **Dials**:
+
+   <img src="docs/images/setup-action-dials.png" width="215" alt="The Dials tab of the Stream Deck action list: Spindle → Now Playing and Now Playing (Wide)"> <img src="docs/images/setup-action-keys.png" width="190" alt="The Keys tab of the Stream Deck action list: Spindle → Cover and Transport">
 
 4. In the action's settings, paste your Home Assistant URL (for example `http://homeassistant.local:8123`) and the token. Wait for the **Status** line to say **Connected**.
 5. Pick a media player from the **Media player** list. Its now-playing info appears on the strip or the key.
