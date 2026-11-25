@@ -1,5 +1,6 @@
 # Spindle: Now Playing for Home Assistant on Stream Deck
 
+[![Get it on the Elgato Marketplace](https://img.shields.io/badge/Elgato%20Marketplace-get%20Spindle-1F51FF)](https://marketplace.elgato.com/product/spindle-6bb0cc45-1c18-44dc-b87f-ff2280df3f13)
 [![Latest release](https://img.shields.io/github/v/release/VagueDustin/spindle-streamdeck)](https://github.com/VagueDustin/spindle-streamdeck/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/VagueDustin/spindle-streamdeck/ci.yml?branch=main&label=CI)](https://github.com/VagueDustin/spindle-streamdeck/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/github/license/VagueDustin/spindle-streamdeck)](LICENSE)
@@ -7,7 +8,6 @@
 ![Stream Deck 7.1+](https://img.shields.io/badge/Stream%20Deck-7.1%2B-informational)
 ![Home Assistant 2025.10+](https://img.shields.io/badge/Home%20Assistant-2025.10%2B-informational)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20Spindle-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/vaguedustin)
-<!-- Elgato Marketplace badge: added once the listing is live. -->
 
 Spindle turns a Stream Deck+ dial's touch strip into a live "now playing" display for any Home Assistant `media_player`. It shows the cover art, the title and artist, and the volume. Turn the dial to set the volume, press it to skip tracks, and tap the strip to play or pause. Put it on two neighbouring dials instead and they become one wide display, with a dial each for volume and tracks. On any Stream Deck, Cover and Transport keys show the art and control the player. Nothing needs to change on the Home Assistant side.
 
@@ -93,7 +93,7 @@ You need the Stream Deck app 7.1 or newer and Home Assistant 2025.10 or newer. O
 
 ### Install and connect
 
-2. Install Spindle from the Elgato Marketplace, or download the `.streamDeckPlugin` file from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it. It is named after its version, such as `Spindle-1.1.0.streamDeckPlugin` (1.0.0 calls it `Spindle.streamDeckPlugin`).
+2. Install Spindle from the [Elgato Marketplace](https://marketplace.elgato.com/product/spindle-6bb0cc45-1c18-44dc-b87f-ff2280df3f13), or download the `.streamDeckPlugin` file from [Releases](https://github.com/VagueDustin/spindle-streamdeck/releases) and double-click it. It is named after its version, such as `Spindle-1.1.0.streamDeckPlugin` (1.0.0 calls it `Spindle.streamDeckPlugin`).
 3. In the Stream Deck app, open the **Spindle** category and drag an action onto your deck: **Now Playing** onto a dial, **Now Playing (Wide)** onto two neighbouring dials, or **Cover** or **Transport** onto a key. [Actions](#actions) describes each one.
 
    The Stream Deck app lists key actions under **Keys** and dial actions under **Dials**:
