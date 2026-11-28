@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.2.0
 
 - The release download is named after its version, for example `Spindle-1.2.0.streamDeckPlugin`, so a downloaded copy says which release it is.
+- **Now Playing (Wide):** the title, artist and the play bars with the source label sit centred across both strips. A line too long to centre clear of the cover art starts beside it, as before, and a longer one still scrolls.
 
 ## 1.1.0
 

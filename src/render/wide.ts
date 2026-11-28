@@ -23,10 +23,11 @@ import {
 	WHITE,
 	wrap,
 	type DialUi,
+	type Drawn,
 	type Frame
 } from "./foreground";
 import { STRIP_H, STRIP_W } from "./geometry";
-import type { FontSpec } from "./textWidth";
+import { estimateWidth, type FontSpec } from "./textWidth";
 
 export type WideUi = Pick<
 	DialUi,
@@ -41,7 +42,10 @@ const ARTIST_Y = 43;
 const TITLE_FONT: FontSpec = { size: 19, weight: 600 };
 const ARTIST_FONT: FontSpec = { size: 14, weight: 400 };
 const BARS_BASE = 66;
-const SOURCE = { x: TEXT_X + 18, y: 60, font: { size: 11, weight: 400 } as FontSpec };
+/** The source label sits `dx` right of the bars' left edge. */
+const SOURCE = { dx: 18, y: 60, font: { size: 11, weight: 400 } as FontSpec };
+/** The play bars' width: three 3 px bars, 5 px apart. */
+const GLYPH_W = 13;
 const ROW_Y = 85;
 /** The right half's transport row: back, play state, forward, centred under the skip dial. */
 const TRANSPORT = { back: STRIP_W + 50, mid: STRIP_W + 100, forward: STRIP_W + 150 };
@@ -71,20 +75,42 @@ function transportRow(playing: boolean, flashDir: -1 | 0 | 1, accent: Rgb): stri
 
 type Rest = { svg: string; bars: boolean; scrolls: boolean };
 
+/** Half the widest line that can centre on the seam without running into the thumbnail. */
+const SEAM_HALF = WIDE_W / 2 - TEXT_X;
+
+/**
+ * A rest-view line centred on the seam (x = 200), so it sits evenly across both keys. A line too
+ * wide to centre without reaching the thumbnail starts at TEXT_X instead, and one wider than
+ * TEXT_W scrolls there as before.
+ */
+function seamLine(id: string, raw: string, y: number, font: FontSpec, paint: string, offset: number): Drawn {
+	if (estimateWidth(raw, font) / 2 > SEAM_HALF) return marquee({ id, x: TEXT_X, w: TEXT_W }, raw, y, font, paint, offset, CANVAS);
+	return { svg: text(WIDE_W / 2, y, font, paint, escapeXml(raw), ' text-anchor="middle"'), scrolls: false };
+}
+
 function restView(p: PlayerState, ui: WideUi, accent: Rgb, t: number): Rest {
 	const title = p.title || p.friendlyName;
 	const artist = p.title ? (p.artist ?? "") : statusWord(p.status);
-	const top = marquee({ id: "wtitle", x: TEXT_X, w: TEXT_W }, title, TITLE_Y, TITLE_FONT, WHITE, ui.offset, CANVAS);
-	const sub = artist
-		? marquee({ id: "wartist", x: TEXT_X, w: TEXT_W }, artist, ARTIST_Y, ARTIST_FONT, white(0.72), ui.offset, CANVAS)
-		: { svg: "", scrolls: false };
+	const top = seamLine("wtitle", title, TITLE_Y, TITLE_FONT, WHITE, ui.offset);
+	const sub = artist ? seamLine("wartist", artist, ARTIST_Y, ARTIST_FONT, white(0.72), ui.offset) : { svg: "", scrolls: false };
 	const playing = p.status === "playing" || p.status === "buffering";
 	let svg = top.svg + sub.svg;
-	if (playing) svg += playBars(t, ui.buffering || p.status === "buffering", accent, TEXT_X, BARS_BASE);
-	else if (p.title) svg += pauseGlyph(TEXT_X, BARS_BASE);
+	// The bars (or pause glyph) and source label centre on the seam as one group, like the lines above.
+	const glyph = playing || Boolean(p.title);
+	const lead = glyph ? SOURCE.dx : 0;
+	const group = ui.sourceLabel ? lead + estimateWidth(ui.sourceLabel, SOURCE.font) : glyph ? GLYPH_W : 0;
+	const x = Math.max(TEXT_X, WIDE_W / 2 - group / 2);
+	if (playing) svg += playBars(t, ui.buffering || p.status === "buffering", accent, x, BARS_BASE);
+	else if (p.title) svg += pauseGlyph(Math.round(x), BARS_BASE);
 	if (ui.sourceLabel) {
-		svg += marquee({ id: "wsource", x: SOURCE.x, w: WIDE_W - SOURCE.x - 8 }, ui.sourceLabel, SOURCE.y, SOURCE.font, white(0.6), 0, CANVAS).svg;
+		const lx = x + lead;
+		svg += marquee({ id: "wsource", x: lx, w: WIDE_W - lx - 8 }, ui.sourceLabel, SOURCE.y, SOURCE.font, white(0.6), 0, CANVAS).svg;
 	}
+	// The centred track text runs into the right half, under the takeover's own track panel; fade it
+	// out as the takeover fades in, so the two titles cross-fade instead of stacking.
+	const alpha = clamp(ui.takeoverAlpha, 0, 1);
+	if (alpha >= 1) svg = "";
+	else if (alpha > 0) svg = `<g opacity="${opacity(1 - alpha)}">${svg}</g>`;
 	// The left bottom row is the dial's volume row, in the same place as on a single dial.
 	svg += volumeRow({ ...ui, mode: "volume", message: undefined }, accent);
 	svg += transportRow(playing, ui.flashDir, accent);
