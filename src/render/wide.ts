@@ -106,6 +106,11 @@ function restView(p: PlayerState, ui: WideUi, accent: Rgb, t: number): Rest {
 		const lx = x + lead;
 		svg += marquee({ id: "wsource", x: lx, w: WIDE_W - lx - 8 }, ui.sourceLabel, SOURCE.y, SOURCE.font, white(0.6), 0, CANVAS).svg;
 	}
+	// The centred track text runs into the right half, under the takeover's own track panel; fade it
+	// out as the takeover fades in, so the two titles cross-fade instead of stacking.
+	const alpha = clamp(ui.takeoverAlpha, 0, 1);
+	if (alpha >= 1) svg = "";
+	else if (alpha > 0) svg = `<g opacity="${opacity(1 - alpha)}">${svg}</g>`;
 	// The left bottom row is the dial's volume row, in the same place as on a single dial.
 	svg += volumeRow({ ...ui, mode: "volume", message: undefined }, accent);
 	svg += transportRow(playing, ui.flashDir, accent);

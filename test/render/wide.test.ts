@@ -49,6 +49,12 @@ describe("renderWide rest view", () => {
 		expect(svg).toMatch(new RegExp(`<rect x="${Math.round(left * 10) / 10}" y="[\\d.]+" width="3"`));
 	});
 
+	it("fades the centred track text out under the takeover instead of stacking it under the track panel", () => {
+		const at = (takeoverAlpha: number) => renderWideBody(player({ title: "星灯" }), { ...ui, takeoverAlpha }, FALLBACK_ACCENT, 0).body;
+		expect(at(0.25)).toMatch(/<g opacity="0.75"><text [^>]*text-anchor="middle"[^>]*>星灯<\/text>/);
+		expect(at(1)).not.toMatch(/<text [^>]*x="200"[^>]*text-anchor="middle"[^>]*>星灯<\/text>/);
+	});
+
 	it("keeps the play bars clear of the thumbnail when the source label is too wide to centre", () => {
 		const svg = renderWideBody(player(), { ...ui, sourceLabel: "A Very Long Source Name From Some Streaming Service Or Other" }, FALLBACK_ACCENT, 0).body;
 		expect(svg).toMatch(/<rect x="80" y="[\d.]+" width="3"/);
